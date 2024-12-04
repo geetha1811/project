@@ -1,0 +1,146 @@
+Here is the updated code that removes try-catch and error handling. It assumes that all required objects like gridOptions.api and gridOptions.columnApi will always be valid. The focus is entirely on a clean implementation.
+
+
+---
+
+1. Changes in Exporter
+
+Updated GridSetupExporter
+
+import { Injectable } from '@angular/core';
+
+@Injectable({
+  providedIn: 'root',
+})
+export class GridSetupExporter {
+  private readonly excludedColumns: string[] = [
+    'GRID_DEFINITION_ID',
+    'GRID_COMBINATION_ID',
+    'ACTIVE',
+    'STATUS',
+    'CREATE_DATE',
+    'UPDATE_DATE',
+    'CREATE_USER',
+    'UPDATE_USER',
+  ];
+
+  /**
+   * Export data as an Excel file with filtered columns.
+   * @param gridOptions The grid options containing the APIs.
+   * @param fileName The name of the exported Excel file.
+   */
+  exportDataAsExcel(gridOptions: any, fileName: string): void {
+    const allColumns = gridOptions.columnApi.getAllColumns();
+    const includedColumns = this.getIncludedColumns(allColumns);
+
+    const excelParams = {
+      columnKeys: includedColumns,
+      fileName: `${fileName}.xlsx`,
+      sheetName: 'Sheet1',
+      skipHeader: false,
+    };
+
+    gridOptions.api.exportDataAsExcel(excelParams);
+  }
+
+  /**
+   * Get included columns by excluding predefined columns.
+   * @param allColumns All available columns in the grid.
+   * @returns Array of included column keys.
+   */
+  private getIncludedColumns(allColumns: any[]): string[] {
+    return allColumns
+      .map(column => column.getColDef().field)
+      .filter(field => field && !this.excludedColumns.includes(field));
+  }
+}
+
+
+---
+
+2. Changes in Component
+
+The component simply calls the exporter, and nothing else.
+
+Updated GridSetupComponent
+
+import { Component } from '@angular/core';
+import { GridSetupExporter } from './grid-setup-exporter.service';
+
+@Component({
+  selector: 'app-grid-setup',
+  templateUrl: './grid-setup.component.html',
+})
+export class GridSetupComponent {
+  gridOptions: any; // Holds the grid options
+  selectedGridName: string = 'ExportedGrid'; // Default file name for export
+
+  constructor(private gridSetupExporter: GridSetupExporter) {}
+
+  /**
+   * Called when the grid is ready.
+   * @param params Grid ready event parameters.
+   */
+  onGridReady(params: any): void {
+    this.gridOptions = params;
+  }
+
+  /**
+   * Trigger export action.
+   */
+  downloadTemplate(): void {
+    this.gridSetupExporter.exportDataAsExcel(this.gridOptions, this.selectedGridName);
+  }
+}
+
+
+---
+
+3. Component HTML
+
+No changes are needed in the HTML. It remains simple.
+
+<button (click)="downloadTemplate()">Download Template</button>
+<ag-grid-angular
+  style="width: 100%; height: 500px;"
+  class="ag-theme-alpine"
+  [gridOptions]="gridOptions"
+  (gridReady)="onGridReady($event)">
+</ag-grid-angular>
+
+
+---
+
+How This Works
+
+1. Exporter Logic:
+
+The exportDataAsExcel method fetches all columns from gridOptions.columnApi.
+
+It filters out excluded columns and passes the remaining column keys to the exportDataAsExcel method.
+
+
+
+2. Component:
+
+Initializes the grid options during onGridReady.
+
+Calls the exportDataAsExcel method from the exporter with the grid options and file name.
+
+
+
+
+
+---
+
+Key Points
+
+No try-catch: Clean and straightforward code without error handling.
+
+Centralized Logic: All export logic is inside the GridSetupExporter.
+
+Simplified Component: The component only calls the exporter method.
+
+
+Let me know if this meets your expectations!
+
