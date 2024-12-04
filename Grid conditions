@@ -1,0 +1,84 @@
+Here's a simplified version of the code:
+
+
+---
+
+Exporter Code
+
+export class GridSetupExporter {
+  exportDataAsExcel(gridOptions: any, fileName: string): void {
+    // Check if gridOptions is null or invalid
+    if (!gridOptions?.api || !gridOptions?.columnApi) {
+      console.error("Invalid grid options. Export canceled.");
+      return;
+    }
+
+    // Check if fileName is empty
+    if (!fileName?.trim()) {
+      console.error("Filename is empty. Export canceled.");
+      return;
+    }
+
+    // Get included columns
+    const allColumns = gridOptions.columnApi.getAllColumns();
+    const excludedColumns = ['GRID DEFINITION ID', 'GRID COMBINATION ID', 'ACTIVE', 'STATUS', 'CREATE DATE', 'UPDATE DATE', 'CREATE USER', 'UPDATE_USER'];
+    const includedColumns = allColumns
+      .map((column: any) => column.getColDef().field)
+      .filter((field: string) => !excludedColumns.includes(field));
+
+    // Export parameters
+    const excelParams = {
+      columnKeys: includedColumns,
+      fileName: `${fileName}.xlsx`,
+      sheetName: "Sheet1",
+      skipHeader: false,
+    };
+
+    gridOptions.api.exportDataAsExcel(excelParams);
+    console.log("Export successful: " + fileName + ".xlsx");
+  }
+}
+
+
+---
+
+Component Code
+
+import { GridSetupExporter } from './gridSetupExporter';
+
+export class GridSetupComponent {
+  gridOptions: any; // Example grid options
+  selectedGridName: string = "MyGridExport"; // Example filename
+
+  constructor(private gridSetupExporter: GridSetupExporter) {}
+
+  downloadTemplate(): void {
+    this.gridSetupExporter.exportDataAsExcel(this.gridOptions, this.selectedGridName);
+  }
+}
+
+
+---
+
+How It Works
+
+1. Checks if gridOptions is valid:
+If invalid, logs an error and stops.
+Example: "Invalid grid options. Export canceled."
+
+
+2. Checks if fileName is empty:
+If empty, logs an error and stops.
+Example: "Filename is empty. Export canceled."
+
+
+3. Proceeds to export data:
+Filters out excluded columns, prepares parameters, and exports data as an Excel file.
+
+
+
+
+---
+
+This code ensures error handling while keeping the logic clear and straightforward.
+
