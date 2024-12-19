@@ -1,0 +1,381 @@
+I understand now that your team uses a highly structured Spring Boot approach for controllers with additional annotations like @Operation, @ApiResponses, @PreAuthorize, and others for a secure and documented REST API. I’ll adapt the dropdown fetching functionality accordingly to match this structure.
+
+Here’s how you can implement a similar dropdown endpoint in your controller for fetching data from the database:
+
+
+---
+
+Controller for Dropdown Data
+
+package com.example.breakdown.controller;
+
+import com.example.breakdown.model.Breakdown;
+import com.example.breakdown.service.BreakdownService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Schema;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/dropdown")
+public class DropdownController {
+
+    @Autowired
+    private BreakdownService breakdownService;
+
+    @GetMapping(path = "/names", produces = "application/json")
+    @PreAuthorize("#oauth2.hasAnyScope('api.iris-portal-basic-details.v1')")
+    @Operation(
+            method = "GET",
+            summary = "Fetch Dropdown Names",
+            description = "Service fetches distinct names for the dropdown list"
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Dropdown names fetched successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = String.class))
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized, authentication required",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Forbidden, insufficient permissions",
+                    content = @Content
+            )
+    })
+    public ResponseEntity<List<String>> getDropdownNames() {
+        List<String> names = breakdownService.getDistinctNames();
+        return ResponseEntity.ok(names);
+    }
+}
+
+
+---
+
+Service for Dropdown Data
+
+The service remains the same, but here's an aligned version for reference.
+
+package com.example.breakdown.service;
+
+import com.example.breakdown.repository.BreakdownRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class BreakdownService {
+
+    @Autowired
+    private BreakdownRepository breakdownRepository;
+
+    public List<String> getDistinctNames() {
+        return breakdownRepository.findDistinctNames();
+    }
+}
+
+
+---
+
+Repository for Dropdown Data
+
+You’ll use the JPA @Query to fetch distinct names. Modify the query to match the column you’re fetching (e.g., bdr_le_name).
+
+package com.example.breakdown.repository;
+
+import com.example.breakdown.model.Breakdown;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface BreakdownRepository extends JpaRepository<Breakdown, Long> {
+
+    @Query("SELECT DISTINCT b.bdrLeName FROM Breakdown b")
+    List<String> findDistinctNames();
+}
+
+
+---
+
+Explanation of Controller
+
+@RequestMapping: Specifies the base API path (/api/v1/dropdown).
+
+@GetMapping: Exposes the specific endpoint (/names).
+
+@PreAuthorize: Ensures only authorized users with the specified OAuth2 scope can access the API.
+
+@Operation: Documents the purpose of the endpoint.
+
+@ApiResponses: Adds Swagger-style documentation for different response scenarios.
+
+
+
+---
+
+Example Response
+
+When you call the endpoint GET /api/v1/dropdown/names, it will return:
+
+[
+  "Name1",
+  "Name2",
+  "Name3"
+]
+
+
+---
+
+Swagger Integration
+
+If your team uses Swagger or OpenAPI, this structure will generate detailed API documentation. You can check the dropdown API documentation in the Swagger UI (usually available at /swagger-ui/index.html).
+
+
+---
+
+Frontend (Quick Overview)
+
+1. Use Angular to fetch the API:
+http://localhost:8080/api/v1/dropdown/names.
+
+
+2. Populate the response data in the dropdown, as shown earlier.
+
+
+
+
+---
+
+Let Me Know
+
+Let me know if you want further clarifications or examples tailored to your team’s standards.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+The code snippet you provided indicates that your team uses a custom implementation to call stored procedures with JdbcTemplate and map the results. You can follow a similar approach for calling the Iris.sp_get_breakdown_metrics stored procedure. Here's how you can replicate this pattern for your dropdown:
+
+
+---
+
+Repository Implementation
+
+package com.socgen.iris.repository.basic;
+
+import com.socgen.iris.exceptions.ServiceException;
+import com.socgen.iris.utils.CustomStoredProcedureSetup;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+
+@Repository
+public class BreakdownRepo {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    private static final String STORED_PROCEDURE_NAME = "Iris.sp_get_breakdown_metrics";
+    private static final String OUT_DATA = "OUT_DATA"; // Define the output parameter if required.
+
+    /**
+     * Calls the stored procedure to get breakdown metrics.
+     *
+     * @return List of metrics.
+     * @throws ServiceException if an error occurs during execution.
+     */
+    public List<String> getBreakdownMetrics() throws ServiceException {
+        try {
+            CustomStoredProcedureSetup procedure = new CustomStoredProcedureSetup(jdbcTemplate, STORED_PROCEDURE_NAME);
+            // Optionally, set result set mappers if required
+            // procedure.setResultSetMapper(new CustomRowMapper());
+
+            return (List<String>) procedure.execute().get(OUT_DATA);
+        } catch (Exception e) {
+            throw new ServiceException("Error in fetching breakdown metrics", e);
+        }
+    }
+}
+
+
+---
+
+Custom Stored Procedure Utility
+
+If CustomStoredProcedureSetup is a utility class your team uses for handling stored procedures, ensure it is properly configured. Here’s a simplified example:
+
+package com.socgen.iris.utils;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.simple.SimpleJdbcCall;
+import java.util.Map;
+
+public class CustomStoredProcedureSetup {
+
+    private SimpleJdbcCall jdbcCall;
+
+    public CustomStoredProcedureSetup(JdbcTemplate jdbcTemplate, String procedureName) {
+        this.jdbcCall = new SimpleJdbcCall(jdbcTemplate)
+                .withProcedureName(procedureName);
+    }
+
+    public Map<String, Object> execute() {
+        return jdbcCall.execute();
+    }
+
+    public void setResultSetMapper(Object rowMapper) {
+        // Example for custom row mapper (if required)
+        jdbcCall.returningResultSet("OUT_DATA", (rowMapper));
+    }
+}
+
+
+---
+
+Service Layer Implementation
+
+The service will call the repository method to retrieve the metrics.
+
+package com.socgen.iris.service;
+
+import com.socgen.iris.exceptions.ServiceException;
+import com.socgen.iris.repository.basic.BreakdownRepo;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class BreakdownService {
+
+    @Autowired
+    private BreakdownRepo breakdownRepo;
+
+    public List<String> getBreakdownMetrics() throws ServiceException {
+        return breakdownRepo.getBreakdownMetrics();
+    }
+}
+
+
+---
+
+Controller Implementation
+
+Expose this through an API endpoint for the dropdown.
+
+package com.socgen.iris.controller;
+
+import com.socgen.iris.service.BreakdownService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/breakdown")
+public class BreakdownController {
+
+    @Autowired
+    private BreakdownService breakdownService;
+
+    @GetMapping("/metrics")
+    public ResponseEntity<List<String>> getBreakdownMetrics() {
+        List<String> metrics = breakdownService.getBreakdownMetrics();
+        return ResponseEntity.ok(metrics);
+    }
+}
+
+
+---
+
+Explanation
+
+1. Repository (BreakdownRepo):
+
+Calls the stored procedure Iris.sp_get_breakdown_metrics.
+
+Maps the result to a List<String> using a custom utility or predefined row mapper.
+
+
+
+2. Custom Utility (CustomStoredProcedureSetup):
+
+A reusable utility to configure and execute stored procedures.
+
+Can handle result set mappers if needed.
+
+
+
+3. Service (BreakdownService):
+
+Provides a layer of abstraction to call repository methods.
+
+
+
+4. Controller (BreakdownController):
+
+Exposes the data fetched from the service as a REST API endpoint.
+
+
+
+
+
+---
+
+Points to Remember
+
+Ensure the stored procedure Iris.sp_get_breakdown_metrics is correctly defined in the database.
+
+Replace OUT_DATA with the actual key used for the result set in the stored procedure.
+
+Use proper exception handling and logging mechanisms to debug issues easily.
+
+
