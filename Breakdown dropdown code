@@ -1,0 +1,140 @@
+Below is the implementation of a repository, RowMapper, service, and controller code for consuming the IRIS.SP_GET_RC_DROPDOWN stored procedure for a dropdown in a breakdown in a typical Java Spring Boot project:
+
+
+---
+
+Repository Code
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
+@Repository
+public class DropdownRepository {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    public List<Dropdown> getDropdownData() {
+        return jdbcTemplate.query(connection -> {
+            var callableStatement = connection.prepareCall("{ call IRIS.SP_GET_RC_DROPDOWN(?) }");
+            callableStatement.registerOutParameter(1, oracle.jdbc.OracleTypes.CURSOR);
+            return callableStatement;
+        }, new DropdownRowMapper());
+    }
+
+    // RowMapper for mapping ResultSet to Dropdown objects
+    private static class DropdownRowMapper implements RowMapper<Dropdown> {
+        @Override
+        public Dropdown mapRow(ResultSet rs, int rowNum) throws SQLException {
+            Dropdown dropdown = new Dropdown();
+            dropdown.setId(rs.getLong("id"));
+            dropdown.setName(rs.getString("name"));
+            return dropdown;
+        }
+    }
+}
+
+
+---
+
+Model (Dropdown.java)
+
+public class Dropdown {
+    private Long id;
+    private String name;
+
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+
+
+---
+
+Service Code
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class DropdownService {
+
+    @Autowired
+    private DropdownRepository dropdownRepository;
+
+    public List<Dropdown> getDropdownData() {
+        return dropdownRepository.getDropdownData();
+    }
+}
+
+
+---
+
+Controller Code
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+public class DropdownController {
+
+    @Autowired
+    private DropdownService dropdownService;
+
+    @GetMapping("/api/dropdown")
+    public List<Dropdown> getDropdown() {
+        return dropdownService.getDropdownData();
+    }
+}
+
+
+---
+
+Explanation
+
+1. Repository: Contains the logic for interacting with the stored procedure using a CallableStatement and maps the results using RowMapper.
+
+
+2. RowMapper: Converts the ResultSet into Dropdown objects.
+
+
+3. Service: Acts as an intermediary layer for business logic, if needed.
+
+
+4. Controller: Exposes the API endpoint /api/dropdown for the frontend to consume.
+
+
+
+Prerequisites
+
+Add the Oracle JDBC driver dependency in pom.xml (or the respective database driver).
+
+Configure the database connection properties in application.properties or application.yml.
+
+
+Let me know if you need further customization!
+
