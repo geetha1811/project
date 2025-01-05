@@ -1,0 +1,202 @@
+Here’s the updated repository code where the getBreakdown method returns a list of objects (e.g., Breakdown) representing the data fetched from the stored procedure.
+
+
+---
+
+Repository Code for Returning Data
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
+
+@Repository
+public class BreakDownRepository {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    public List<Breakdown> getBreakdown() throws ServiceException {
+        Connection con = null;
+        CallableStatement cs = null;
+        ResultSet rs = null;
+        List<Breakdown> breakdownList = new ArrayList<>();
+
+        try {
+            // Get database connection
+            con = this.jdbcTemplate.getDataSource().getConnection();
+
+            // Prepare the stored procedure
+            cs = con.prepareCall("{call IRIS.SP_GET_RC_DROPDOWN(?)}");
+
+            // Register OUT parameter for SYS_REFCURSOR
+            cs.registerOutParameter(1, oracle.jdbc.OracleTypes.CURSOR);
+
+            // Execute the stored procedure
+            cs.execute();
+
+            // Get the result set from the OUT parameter
+            rs = (ResultSet) cs.getObject(1);
+
+            // Process the result set and populate the list
+            while (rs.next()) {
+                Breakdown breakdown = new Breakdown();
+                breakdown.setId(rs.getLong("id")); // Fetch 'id' from ResultSet
+                breakdown.setName(rs.getString("name")); // Fetch 'name' from ResultSet
+                breakdownList.add(breakdown); // Add to the list
+            }
+
+        } catch (Exception e) {
+            throw new ServiceException("Error executing stored procedure for dropdown", e);
+        } finally {
+            // Close resources
+            DbUtils.closeQuietly(rs);
+            DbUtils.closeQuietly(cs);
+            DbUtils.closeQuietly(con);
+        }
+
+        return breakdownList;
+    }
+}
+
+
+---
+
+Supporting Classes
+
+Breakdown Class
+
+This class represents each row returned by the stored procedure.
+
+public class Breakdown {
+    private Long id;
+    private String name;
+
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+
+
+---
+
+Service Class
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class BreakDownService {
+
+    @Autowired
+    private BreakDownRepository breakDownRepository;
+
+    public List<Breakdown> getBreakdown() throws ServiceException {
+        return breakDownRepository.getBreakdown();
+    }
+}
+
+
+---
+
+Controller Class
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+public class BreakDownController {
+
+    @Autowired
+    private BreakDownService breakDownService;
+
+    @GetMapping("/api/breakdown")
+    public List<Breakdown> getBreakdown() {
+        try {
+            return breakDownService.getBreakdown();
+        } catch (ServiceException e) {
+            throw new RuntimeException("Error retrieving dropdown data", e);
+        }
+    }
+}
+
+
+---
+
+Explanation
+
+1. Returning Data:
+
+The repository method getBreakdown now returns a List<Breakdown>, which contains all rows fetched from the database.
+
+
+
+2. Breakdown Object:
+
+The Breakdown class maps each record from the database with id and name fields.
+
+
+
+3. Mapping Logic:
+
+Each row from the ResultSet is mapped to a Breakdown object inside the while (rs.next()) loop:
+
+Breakdown breakdown = new Breakdown();
+breakdown.setId(rs.getLong("id"));
+breakdown.setName(rs.getString("name"));
+breakdownList.add(breakdown);
+
+
+
+4. Service and Controller:
+
+The service and controller simply call the repository method and return the resulting List<Breakdown> to the API client.
+
+
+
+
+
+---
+
+Sample Output from Controller
+
+If your database contains: | id  | name          | | ----| ------------- | | 1   | Option 1      | | 2   | Option 2      |
+
+The API (/api/breakdown) will return:
+
+[
+    {
+        "id": 1,
+        "name": "Option 1"
+    },
+    {
+        "id": 2,
+        "name": "Option 2"
+    }
+]
+
+Let me know if you need further clarification or additional enhancements!
+
