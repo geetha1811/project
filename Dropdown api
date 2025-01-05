@@ -1,22 +1,20 @@
-Here's the complete solution with the repository, service, and controller for consuming the IRIS.SP_GET_RC_DROPDOWN stored procedure in a Spring Boot application.
+Here is how you can adapt the code structure shown in the image for your dropdown stored procedure (IRIS.SP_GET_RC_DROPDOWN). This will use a CallableStatement and handle the SYS_REFCURSOR as output, similar to the example you provided.
 
-Repository Code
 
-This will handle the stored procedure call and map the result set to a list of Breakdown objects.
+---
+
+Repository Code (Adapted for Dropdown)
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.SqlOutParameter;
-import org.springframework.jdbc.object.StoredProcedure;
 import org.springframework.stereotype.Repository;
-import oracle.jdbc.OracleTypes;
 
+import java.sql.CallableStatement;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Repository
 public class BreakDownRepository {
@@ -24,45 +22,97 @@ public class BreakDownRepository {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    private static final String SP_GET_RC_DROPDOWN_SQL = "{call IRIS.SP_GET_RC_DROPDOWN(?)}";
+
     public List<Breakdown> getBreakdown() throws ServiceException {
+        Connection con = null;
+        CallableStatement cs = null;
+        ResultSet rs = null;
+        List<Breakdown> breakdownList = new ArrayList<>();
+
         try {
-            // Create stored procedure object
-            CustomStoredProcedureSetup procedure = new CustomStoredProcedureSetup(jdbcTemplate, "IRIS.SP_GET_RC_DROPDOWN");
-            
-            // Declare output parameter for SYS_REFCURSOR
-            procedure.declareParameter(new SqlOutParameter("OUT_RESULT", OracleTypes.CURSOR));
-            
-            // Execute stored procedure
-            Map<String, Object> resultMap = procedure.execute();
-            
-            // Extract the ResultSet from the OUT parameter
-            ResultSet rs = (ResultSet) resultMap.get("OUT_RESULT");
-            
-            // Map ResultSet to Breakdown objects
-            List<Breakdown> breakdowns = new ArrayList<>();
+            // Get database connection
+            con = this.jdbcTemplate.getDataSource().getConnection();
+            cs = con.prepareCall(SP_GET_RC_DROPDOWN_SQL);
+
+            // Register OUT parameter for SYS_REFCURSOR
+            cs.registerOutParameter(1, oracle.jdbc.OracleTypes.CURSOR);
+
+            // Execute the stored procedure
+            cs.execute();
+
+            // Retrieve the result set from the OUT parameter
+            rs = (ResultSet) cs.getObject(1);
+
+            // Map the result set to Breakdown objects
             while (rs.next()) {
                 Breakdown breakdown = new Breakdown();
                 breakdown.setId(rs.getLong("id"));
                 breakdown.setName(rs.getString("name"));
-                breakdowns.add(breakdown);
+                breakdownList.add(breakdown);
             }
 
-            return breakdowns;
-
-        } catch (Exception e) {
-            // Log and throw custom ServiceException
-            e.printStackTrace();
-            throw new ServiceException("Exception in getBreakdown", e);
+        } catch (SQLException e) {
+            throw new ServiceException("Error fetching dropdown data from stored procedure.", e);
+        } finally {
+            // Close resources
+            DbUtils.closeQuietly(rs);
+            DbUtils.closeQuietly(cs);
+            DbUtils.closeQuietly(con);
         }
+
+        return breakdownList;
     }
 }
 
 
 ---
 
-Service Code
+Explanation
 
-The service layer will call the repository and provide data to the controller.
+1. Procedure Call:
+
+SP_GET_RC_DROPDOWN_SQL defines the SQL call for the stored procedure with one SYS_REFCURSOR as the output.
+
+
+
+2. Connection:
+
+Obtains a database connection from JdbcTemplate.
+
+
+
+3. CallableStatement:
+
+Prepares a call to the stored procedure.
+
+Registers the SYS_REFCURSOR as an output parameter.
+
+
+
+4. ResultSet Mapping:
+
+Extracts the cursor from the CallableStatement and iterates over it to map the result set into Breakdown objects.
+
+
+
+5. Error Handling:
+
+Throws a custom ServiceException for any SQL errors.
+
+
+
+6. Resource Management:
+
+Ensures all database resources (ResultSet, CallableStatement, and Connection) are properly closed using DbUtils.closeQuietly.
+
+
+
+
+
+---
+
+Service Code
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -85,8 +135,6 @@ public class BreakDownService {
 
 Controller Code
 
-The controller exposes an API endpoint to fetch the dropdown data (breakdown).
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -104,7 +152,6 @@ public class BreakDownController {
         try {
             return breakDownService.getBreakdown();
         } catch (ServiceException e) {
-            // Return a proper error response (you can customize this further)
             throw new RuntimeException("Error retrieving breakdown data", e);
         }
     }
@@ -114,8 +161,6 @@ public class BreakDownController {
 ---
 
 Model Class (Breakdown)
-
-This class represents the data structure returned by the stored procedure (with id and name).
 
 public class Breakdown {
     private Long id;
@@ -142,98 +187,58 @@ public class Breakdown {
 
 ---
 
-Custom Stored Procedure Setup
+Utility Class for Closing Resources (DbUtils)
 
-This is the helper class used to execute the stored procedure and handle SYS_REFCURSOR.
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.Statement;
 
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.SqlOutParameter;
-import org.springframework.jdbc.object.StoredProcedure;
-import oracle.jdbc.OracleTypes;
+public class DbUtils {
+    public static void closeQuietly(ResultSet rs) {
+        try {
+            if (rs != null) rs.close();
+        } catch (Exception ignored) {
+        }
+    }
 
-import java.sql.Types;
+    public static void closeQuietly(Statement stmt) {
+        try {
+            if (stmt != null) stmt.close();
+        } catch (Exception ignored) {
+        }
+    }
 
-public class CustomStoredProcedureSetup extends StoredProcedure {
-
-    public CustomStoredProcedureSetup(JdbcTemplate jdbcTemplate, String procedureName) {
-        super(jdbcTemplate.getDataSource(), procedureName);
-        
-        // Declare the output parameter as a REF_CURSOR
-        declareParameter(new SqlOutParameter("OUT_RESULT", OracleTypes.CURSOR));
-        compile();
+    public static void closeQuietly(Connection conn) {
+        try {
+            if (conn != null) conn.close();
+        } catch (Exception ignored) {
+        }
     }
 }
 
 
 ---
 
-Service Exception
+Differences Compared to Your Image
 
-You might have a custom exception class for handling errors:
+Direct SYS_REFCURSOR Handling:
 
-public class ServiceException extends Exception {
-
-    public ServiceException(String message, Throwable cause) {
-        super(message, cause);
-    }
-}
+Like your example, it directly handles SYS_REFCURSOR as an output parameter using a CallableStatement.
 
 
----
+Manual Mapping:
 
-Explanation
-
-1. Repository:
-
-The BreakDownRepository executes the stored procedure IRIS.SP_GET_RC_DROPDOWN using JdbcTemplate and maps the output cursor to a list of Breakdown objects.
+Maps the result set directly to the Breakdown object in the repository method, avoiding the need for additional RowMapper.
 
 
+Resource Handling:
 
-2. Service:
-
-The BreakDownService acts as a service layer that interacts with the repository to fetch the breakdown data.
-
-
-
-3. Controller:
-
-The BreakDownController exposes the /api/breakdown API endpoint to the client to get the dropdown data.
-
-
-
-4. CustomStoredProcedureSetup:
-
-This helper class wraps around the stored procedure execution, declaring the output parameter (OUT_RESULT), which is a SYS_REFCURSOR.
-
-
-
-5. Model Class:
-
-The Breakdown model represents the individual data entries with id and name.
-
-
-
-
-Run and Test
-
-1. Database Configuration: Make sure the application.properties or application.yml file has the correct database connection details:
-
-
-
-spring.datasource.url=jdbc:oracle:thin:@localhost:1521:xe
-spring.datasource.username=<your_username>
-spring.datasource.password=<your_password>
-spring.datasource.driver-class-name=oracle.jdbc.OracleDriver
-
-2. Testing:
-
-Run your Spring Boot application and navigate to http://localhost:8080/api/breakdown to see the dropdown data.
-
+Ensures all resources are closed safely in the finally block using a utility method (DbUtils).
 
 
 
 
 ---
 
-This should work correctly now and allow you to execute the stored procedure and map the data for the dropdown. Let me know if you need more help!
+This implementation aligns with your provided code structure and handles the dropdown stored procedure in a similar way. Let me know if you need further clarification!
 
