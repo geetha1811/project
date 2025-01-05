@@ -1,0 +1,178 @@
+You're correct, in the dropdown implementation, I didn't use a Map or HashMap. Instead, it directly returned a List of objects. Let me simplify the implementation for the new stored procedure IRIS.SP_GET_BREAKDOWN_RESULT to return a structure similar to the dropdown example.
+
+
+---
+
+Repository Implementation
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
+
+@Repository
+public class BreakdownResultRepository {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    public List<List<Object>> getBreakdownResult(String asOfDate, String basicId, String category) throws ServiceException {
+        Connection con = null;
+        CallableStatement cs = null;
+        ResultSet resultHdr = null;
+        ResultSet resultData = null;
+
+        List<String> columnNames = new ArrayList<>();
+        List<List<Object>> rows = new ArrayList<>();
+
+        try {
+            // Establish connection
+            con = this.jdbcTemplate.getDataSource().getConnection();
+
+            // Prepare call for the stored procedure
+            cs = con.prepareCall("{call IRIS.SP_GET_BREAKDOWN_RESULT(?, ?, ?, ?, ?)}");
+
+            // Set input parameters
+            cs.setString(1, asOfDate);  // p_asofdate
+            cs.setString(2, basicId);   // p_basic_id
+            cs.setString(3, category);  // p_category
+
+            // Register output parameters
+            cs.registerOutParameter(4, oracle.jdbc.OracleTypes.CURSOR); // out_result_hdr
+            cs.registerOutParameter(5, oracle.jdbc.OracleTypes.CURSOR); // out_result
+
+            // Execute the stored procedure
+            cs.execute();
+
+            // Process out_result_hdr (Column Names)
+            resultHdr = (ResultSet) cs.getObject(4);
+            while (resultHdr.next()) {
+                columnNames.add(resultHdr.getString(1)); // Assuming the first column contains the column name
+            }
+
+            // Add column names as the first row
+            rows.add(new ArrayList<>(columnNames));
+
+            // Process out_result (Field Values)
+            resultData = (ResultSet) cs.getObject(5);
+            while (resultData.next()) {
+                List<Object> row = new ArrayList<>();
+                for (String columnName : columnNames) {
+                    row.add(resultData.getObject(columnName)); // Add each column value to the row
+                }
+                rows.add(row);
+            }
+
+        } catch (Exception e) {
+            throw new ServiceException("Error executing breakdown result stored procedure", e);
+        } finally {
+            // Close resources
+            DbUtils.closeQuietly(resultHdr);
+            DbUtils.closeQuietly(resultData);
+            DbUtils.closeQuietly(cs);
+            DbUtils.closeQuietly(con);
+        }
+
+        return rows;
+    }
+}
+
+
+---
+
+Service Implementation
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class BreakdownResultService {
+
+    @Autowired
+    private BreakdownResultRepository breakdownResultRepository;
+
+    public List<List<Object>> getBreakdownResult(String asOfDate, String basicId, String category) throws ServiceException {
+        return breakdownResultRepository.getBreakdownResult(asOfDate, basicId, category);
+    }
+}
+
+
+---
+
+Controller Implementation
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+public class BreakdownResultController {
+
+    @Autowired
+    private BreakdownResultService breakdownResultService;
+
+    @GetMapping("/api/breakdown/result")
+    public List<List<Object>> getBreakdownResult(
+            @RequestParam String asOfDate,
+            @RequestParam String basicId,
+            @RequestParam String category) {
+        try {
+            return breakdownResultService.getBreakdownResult(asOfDate, basicId, category);
+        } catch (ServiceException e) {
+            throw new RuntimeException("Error retrieving breakdown result", e);
+        }
+    }
+}
+
+
+---
+
+Explanation
+
+1. Returning a List<List<Object>>:
+
+The first List contains the column names as the first row.
+
+Subsequent List entries contain the field values for each row.
+
+
+
+2. Structure Example:
+
+If the column names are ["ID", "Name", "Value"], and data rows are:
+
+[1, "A", 100]
+[2, "B", 200]
+
+The result will look like:
+
+[
+    ["ID", "Name", "Value"],
+    [1, "A", 100],
+    [2, "B", 200]
+]
+
+
+
+3. No Map or HashMap:
+
+The data structure is kept simple and similar to the dropdown approach.
+
+
+
+
+
+---
+
+Let me know if further adjustments are needed!
+
