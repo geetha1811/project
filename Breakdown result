@@ -1,178 +1,163 @@
-You're correct, in the dropdown implementation, I didn't use a Map or HashMap. Instead, it directly returned a List of objects. Let me simplify the implementation for the new stored procedure IRIS.SP_GET_BREAKDOWN_RESULT to return a structure similar to the dropdown example.
+Understood! Based on the Java Spring Boot code and the provided stored procedure, here's how you can integrate the stored procedure into your Spring Boot project:
 
+Java Code to Call the Stored Procedure
 
----
-
-Repository Implementation
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
-
-import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.ResultSet;
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.CallableStatement;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.stereotype.Service;
 
-@Repository
-public class BreakdownResultRepository {
+import oracle.jdbc.OracleTypes;
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+@Service
+public class BreakdownService {
 
-    public List<List<Object>> getBreakdownResult(String asOfDate, String basicId, String category) throws ServiceException {
+    public BreakdownResult getBreakdownResult(String asOfDate, String basicId, String category) throws ServiceException {
         Connection con = null;
         CallableStatement cs = null;
-        ResultSet resultHdr = null;
-        ResultSet resultData = null;
-
-        List<String> columnNames = new ArrayList<>();
-        List<List<Object>> rows = new ArrayList<>();
+        ResultSet headerRS = null;
+        ResultSet resultRS = null;
+        BreakdownResult breakdownResult = new BreakdownResult();
 
         try {
-            // Establish connection
-            con = this.jdbcTemplate.getDataSource().getConnection();
-
-            // Prepare call for the stored procedure
-            cs = con.prepareCall("{call IRIS.SP_GET_BREAKDOWN_RESULT(?, ?, ?, ?, ?)}");
+            con = DataSourceUtils.getConnection(yourJdbcTemplate.getDataSource());
+            cs = con.prepareCall("{CALL IRIS.SP_GET_BREAKDOWN_RESULT(?, ?, ?, ?, ?)}");
 
             // Set input parameters
-            cs.setString(1, asOfDate);  // p_asofdate
-            cs.setString(2, basicId);   // p_basic_id
-            cs.setString(3, category);  // p_category
+            cs.setString(1, asOfDate);
+            cs.setString(2, basicId);
+            cs.setString(3, category);
 
             // Register output parameters
-            cs.registerOutParameter(4, oracle.jdbc.OracleTypes.CURSOR); // out_result_hdr
-            cs.registerOutParameter(5, oracle.jdbc.OracleTypes.CURSOR); // out_result
+            cs.registerOutParameter(4, OracleTypes.CURSOR); // Header result set
+            cs.registerOutParameter(5, OracleTypes.CURSOR); // Data result set
 
-            // Execute the stored procedure
+            // Execute the procedure
             cs.execute();
 
-            // Process out_result_hdr (Column Names)
-            resultHdr = (ResultSet) cs.getObject(4);
-            while (resultHdr.next()) {
-                columnNames.add(resultHdr.getString(1)); // Assuming the first column contains the column name
+            // Retrieve header result set
+            headerRS = (ResultSet) cs.getObject(4);
+            while (headerRS.next()) {
+                breakdownResult.addHeader(headerRS.getString(1)); // Replace with your logic
             }
 
-            // Add column names as the first row
-            rows.add(new ArrayList<>(columnNames));
-
-            // Process out_result (Field Values)
-            resultData = (ResultSet) cs.getObject(5);
-            while (resultData.next()) {
-                List<Object> row = new ArrayList<>();
-                for (String columnName : columnNames) {
-                    row.add(resultData.getObject(columnName)); // Add each column value to the row
-                }
-                rows.add(row);
+            // Retrieve data result set
+            resultRS = (ResultSet) cs.getObject(5);
+            while (resultRS.next()) {
+                breakdownResult.addData(resultRS.getString(1)); // Replace with your logic
             }
 
         } catch (Exception e) {
-            throw new ServiceException("Error executing breakdown result stored procedure", e);
+            throw new ServiceException("Error occurred while fetching breakdown results", e);
         } finally {
-            // Close resources
-            DbUtils.closeQuietly(resultHdr);
-            DbUtils.closeQuietly(resultData);
-            DbUtils.closeQuietly(cs);
-            DbUtils.closeQuietly(con);
+            // Ensure resources are closed
+            closeQuietly(resultRS);
+            closeQuietly(headerRS);
+            closeQuietly(cs);
+            DataSourceUtils.releaseConnection(con, yourJdbcTemplate.getDataSource());
         }
 
-        return rows;
+        return breakdownResult;
     }
-}
 
-
----
-
-Service Implementation
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-
-@Service
-public class BreakdownResultService {
-
-    @Autowired
-    private BreakdownResultRepository breakdownResultRepository;
-
-    public List<List<Object>> getBreakdownResult(String asOfDate, String basicId, String category) throws ServiceException {
-        return breakdownResultRepository.getBreakdownResult(asOfDate, basicId, category);
-    }
-}
-
-
----
-
-Controller Implementation
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
-
-@RestController
-public class BreakdownResultController {
-
-    @Autowired
-    private BreakdownResultService breakdownResultService;
-
-    @GetMapping("/api/breakdown/result")
-    public List<List<Object>> getBreakdownResult(
-            @RequestParam String asOfDate,
-            @RequestParam String basicId,
-            @RequestParam String category) {
-        try {
-            return breakdownResultService.getBreakdownResult(asOfDate, basicId, category);
-        } catch (ServiceException e) {
-            throw new RuntimeException("Error retrieving breakdown result", e);
+    private void closeQuietly(AutoCloseable closeable) {
+        if (closeable != null) {
+            try {
+                closeable.close();
+            } catch (Exception ignored) {
+            }
         }
     }
 }
 
+Stored Procedure (SQL)
 
----
+CREATE OR REPLACE PROCEDURE IRIS.SP_GET_BREAKDOWN_RESULT (
+    p_asofdate   IN  VARCHAR2,   -- As of date dd/mm/yyyy
+    p_basic_id   IN  VARCHAR2,   -- Basic ID
+    p_category   IN  VARCHAR2,   -- RC type
+    out_result_hdr OUT SYS_REFCURSOR, -- Out result contains the column names
+    out_result     OUT SYS_REFCURSOR  -- Field values
+)
+AS
+BEGIN
+    -- Fetch header result
+    OPEN out_result_hdr FOR
+        SELECT column_name
+        FROM your_table_hdr
+        WHERE some_condition;
+
+    -- Fetch detailed result
+    OPEN out_result FOR
+        SELECT *
+        FROM your_table_data
+        WHERE some_condition;
+
+    -- Add exception handling if needed
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(-20001, 'An unexpected error occurred: ' || SQLERRM);
+END SP_GET_BREAKDOWN_RESULT;
+/
+
+BreakdownResult Class
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class BreakdownResult {
+
+    private List<String> headers = new ArrayList<>();
+    private List<String> data = new ArrayList<>();
+
+    public void addHeader(String header) {
+        this.headers.add(header);
+    }
+
+    public void addData(String record) {
+        this.data.add(record);
+    }
+
+    public List<String> getHeaders() {
+        return headers;
+    }
+
+    public List<String> getData() {
+        return data;
+    }
+}
 
 Explanation
 
-1. Returning a List<List<Object>>:
+1. Java Code:
 
-The first List contains the column names as the first row.
+Connects to the database and calls the stored procedure IRIS.SP_GET_BREAKDOWN_RESULT.
 
-Subsequent List entries contain the field values for each row.
-
-
-
-2. Structure Example:
-
-If the column names are ["ID", "Name", "Value"], and data rows are:
-
-[1, "A", 100]
-[2, "B", 200]
-
-The result will look like:
-
-[
-    ["ID", "Name", "Value"],
-    [1, "A", 100],
-    [2, "B", 200]
-]
+Passes input parameters and retrieves results using SYS_REFCURSOR.
 
 
 
-3. No Map or HashMap:
+2. Stored Procedure:
 
-The data structure is kept simple and similar to the dropdown approach.
+Takes input parameters (p_asofdate, p_basic_id, and p_category) to filter the data.
+
+Returns two result sets: one for headers and another for data.
+
+
+
+3. BreakdownResult Class:
+
+A simple DTO to store the headers and data from the stored procedure.
+
+
+
+4. Spring Boot Integration:
+
+You can inject this service (BreakdownService) into your controller and call the getBreakdownResult method.
 
 
 
 
-
----
-
-Let me know if further adjustments are needed!
+Let me know if you need further adjustments or additional code for integration!
 
