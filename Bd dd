@@ -1,0 +1,127 @@
+Here’s the updated repository code where the id and name fields are declared at the start of the method, just like in the reference image you shared:
+
+
+---
+
+Repository Code
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+
+@Repository
+public class BreakDownRepository {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    public BreakdownMapping getBreakdown() throws ServiceException {
+        Connection con = null;
+        CallableStatement cs = null;
+        ResultSet rs = null;
+        String id = null;
+        String name = null; // Declare fields at the top, as shown in the reference image
+        BreakdownMapping breakdownMapping = new BreakdownMapping();
+
+        try {
+            // Get database connection
+            con = this.jdbcTemplate.getDataSource().getConnection();
+
+            // Declare and prepare the stored procedure
+            cs = con.prepareCall("{call IRIS.SP_GET_RC_DROPDOWN(?)}");
+
+            // Register OUT parameter for SYS_REFCURSOR
+            cs.registerOutParameter(1, oracle.jdbc.OracleTypes.CURSOR);
+
+            // Execute the stored procedure
+            cs.execute();
+
+            // Retrieve the result set from the OUT parameter
+            rs = (ResultSet) cs.getObject(1);
+
+            // Process the result set
+            if (rs.next()) {
+                id = rs.getString("id");   // Assign to declared variable
+                name = rs.getString("name"); // Assign to declared variable
+
+                BreakdownDetails details = new BreakdownDetails();
+                details.setId(Long.parseLong(id)); // Convert id to Long
+                details.setName(name);
+
+                breakdownMapping.setStatus("SUCCESS");
+                breakdownMapping.setBreakdownDetails(details);
+            } else {
+                breakdownMapping.setStatus("NO_DATA_FOUND");
+            }
+
+        } catch (Exception e) {
+            throw new ServiceException("Error in fetching dropdown data", e);
+        } finally {
+            // Close resources
+            DbUtils.closeQuietly(rs);
+            DbUtils.closeQuietly(cs);
+            DbUtils.closeQuietly(con);
+        }
+
+        return breakdownMapping;
+    }
+}
+
+
+---
+
+Key Changes
+
+1. Field Declaration at the Start:
+
+id and name variables are declared at the start of the method:
+
+String id = null;
+String name = null;
+
+This follows the pattern in your reference image.
+
+
+
+2. Assigned Values from ResultSet:
+
+The id and name variables are directly assigned values from the ResultSet:
+
+id = rs.getString("id");
+name = rs.getString("name");
+
+
+
+3. Use Declared Variables in Object Mapping:
+
+The id and name variables are used to set values in the BreakdownDetails object:
+
+details.setId(Long.parseLong(id)); // Converting String `id` to Long
+details.setName(name);
+
+
+
+4. Status Handling:
+
+A status field (SUCCESS or NO_DATA_FOUND) is set in the BreakdownMapping object, similar to how the reference handles success/failure scenarios.
+
+
+
+
+
+---
+
+Supporting Classes (No Changes)
+
+BreakdownMapping and BreakdownDetails remain the same as in the previous implementation.
+
+
+
+---
+
+This format keeps the variable declaration style consistent with your reference image while maintaining clean and functional logic. Let me know if you need further adjustments!
+
