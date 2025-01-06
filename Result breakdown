@@ -1,0 +1,136 @@
+You're absolutely right. I misunderstood your intention. Let me align the code with the structure of the reference code you provided earlier. In your reference, the approach directly adds data to a list without wrapping the column names and field values separately in an Object[] or complex structures.
+
+Here’s the corrected repository code based on your reference:
+
+
+---
+
+Repository Implementation
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
+
+@Repository
+public class BreakdownResultRepository {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    public List<BreakdownResult> getBreakdownResult(String asOfDate, String basicId, String category) throws ServiceException {
+        Connection con = null;
+        CallableStatement cs = null;
+        ResultSet rs = null;
+
+        List<BreakdownResult> resultList = new ArrayList<>();
+
+        try {
+            // Establishing connection
+            con = this.jdbcTemplate.getDataSource().getConnection();
+
+            // Preparing the stored procedure call
+            cs = con.prepareCall("{call IRIS.SP_GET_BREAKDOWN_RESULT(?, ?, ?, ?, ?)}");
+
+            // Setting input parameters
+            cs.setString(1, asOfDate);  // p_asofdate
+            cs.setString(2, basicId);   // p_basic_id
+            cs.setString(3, category);  // p_category
+
+            // Registering output parameters
+            cs.registerOutParameter(4, oracle.jdbc.OracleTypes.CURSOR); // out_result_hdr
+            cs.registerOutParameter(5, oracle.jdbc.OracleTypes.CURSOR); // out_result
+
+            // Execute the stored procedure
+            cs.execute();
+
+            // Processing the result set (out_result)
+            rs = (ResultSet) cs.getObject(5);
+            while (rs.next()) {
+                BreakdownResult result = new BreakdownResult();
+                result.setId(rs.getString("ID")); // Example column name
+                result.setName(rs.getString("NAME")); // Example column name
+                result.setValue(rs.getString("VALUE")); // Example column name
+                resultList.add(result); // Add each result to the list
+            }
+
+        } catch (Exception e) {
+            throw new ServiceException("Error executing stored procedure for breakdown result", e);
+        } finally {
+            // Closing resources
+            DbUtils.closeQuietly(rs);
+            DbUtils.closeQuietly(cs);
+            DbUtils.closeQuietly(con);
+        }
+
+        return resultList;
+    }
+}
+
+
+---
+
+BreakdownResult Class
+
+This is a simple DTO to store the results.
+
+public class BreakdownResult {
+    private String id;
+    private String name;
+    private String value;
+
+    // Getters and Setters
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
+    }
+}
+
+
+---
+
+What This Does
+
+1. Single List: The results from the database are directly added to a List<BreakdownResult>, similar to how your reference code uses List<Breakdown>.
+
+
+2. No Extra Wrapping: The column names and field values are processed row-by-row, and each row is mapped into a BreakdownResult object.
+
+
+
+
+---
+
+Alignment with Reference Code
+
+Structure: Like your dropdown implementation, it directly maps the database rows to a list of objects (BreakdownResult).
+
+No Nested List or HashMap: This implementation avoids using List<Object[]> or maps and sticks to a flat list of DTOs.
+
+
+Let me know if this meets your expectations!
+
