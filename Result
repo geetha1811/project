@@ -1,133 +1,165 @@
-To create repository code for this stored procedure, we will write a basic implementation in Java using Spring Boot and JDBC. Here's an example:
+Here’s the simplified version of the code without using maps, hashmaps, or for-loops for processing the result set directly into a custom class.
 
+Code:
 
----
+public BreakdownResult getBreakdownResult(String basicId, String businessDate) throws ServiceException {
+    Connection con = null;
+    CallableStatement cs = null;
+    ResultSet headerRS = null;
+    ResultSet resultRS = null;
+    BreakdownResult breakdownResult = new BreakdownResult();
+    String status = "";
 
-Repository Code:
+    try {
+        // Establishing connection
+        con = this.jdbcTemplate.getDataSource().getConnection();
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
-import java.sql.CallableStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+        // Preparing callable statement
+        cs = con.prepareCall("{call IRIS.SP_GET_BREAKDOWN_RESULT(?, ?, ?, ?, ?)}");
 
-@Repository
-public class BreakdownResultRepository {
+        // Setting input parameters
+        cs.setString(1, basicId);
+        cs.setString(2, businessDate);
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+        // Registering output parameters
+        cs.registerOutParameter(3, oracle.jdbc.OracleTypes.CURSOR); // Header set
+        cs.registerOutParameter(4, oracle.jdbc.OracleTypes.CURSOR); // Result set
+        cs.registerOutParameter(5, java.sql.Types.VARCHAR);        // Status
 
-    public BreakdownResult getBreakdownResult(String basicId, String businessDate) {
-        return jdbcTemplate.execute(connection -> {
-            CallableStatement callableStatement = connection.prepareCall(
-                    "{call IRIS.SP_GET_BREAKDOWN_RESULT(?, ?, ?, ?, ?)}"
-            );
-            // Set input parameters
-            callableStatement.setString(1, basicId);
-            callableStatement.setString(2, businessDate);
-            
-            // Register output parameters
-            callableStatement.registerOutParameter(3, oracle.jdbc.OracleTypes.CURSOR); // Header set
-            callableStatement.registerOutParameter(4, oracle.jdbc.OracleTypes.CURSOR); // Result set
-            callableStatement.registerOutParameter(5, java.sql.Types.VARCHAR);        // Status
-            
-            return callableStatement;
-        }, (CallableStatement cs) -> {
-            BreakdownResult breakdownResult = new BreakdownResult();
-            
-            cs.execute();
+        // Executing stored procedure
+        cs.execute();
 
-            // Retrieve Header Set
-            try (ResultSet headerSet = (ResultSet) cs.getObject(3)) {
-                List<String> headers = new ArrayList<>();
-                while (headerSet.next()) {
-                    headers.add(headerSet.getString(1)); // Assuming first column contains headers
-                }
-                breakdownResult.setHeaderSet(headers);
-            }
+        // Getting status
+        status = cs.getString(5);
+        if (!"SUCCESS".equalsIgnoreCase(status)) {
+            throw new ServiceException("Stored Procedure returned status: " + status);
+        }
 
-            // Retrieve Result Set
-            try (ResultSet resultSet = (ResultSet) cs.getObject(4)) {
-                List<Map<String, Object>> results = new ArrayList<>();
-                while (resultSet.next()) {
-                    // Assuming columns are dynamically retrieved
-                    Map<String, Object> row = jdbcTemplate.getColumnMap(resultSet);
-                    results.add(row);
-                }
-                breakdownResult.setResultSet(results);
-            }
+        // Retrieving Header Set
+        headerRS = (ResultSet) cs.getObject(3);
+        if (headerRS.next()) {
+            breakdownResult.setHeaderSet(headerRS.getString(1)); // Assuming only one header value
+        }
 
-            // Retrieve Status
-            breakdownResult.setOutStatus(cs.getString(5));
-            
-            return breakdownResult;
-        });
+        // Retrieving Result Set
+        resultRS = (ResultSet) cs.getObject(4);
+        if (resultRS.next()) {
+            breakdownResult.setValue1(resultRS.getString(1)); // Assuming first column value
+            breakdownResult.setValue2(resultRS.getString(2)); // Assuming second column value
+            breakdownResult.setValue3(resultRS.getString(3)); // Assuming third column value
+        }
+
+        // Setting status as successful
+        breakdownResult.setStatus("SUCCESS");
+
+    } catch (Exception e) {
+        throw new ServiceException("Error while executing getBreakdownResult: ", e);
+    } finally {
+        // Closing resources
+        DBUtils.closeQuietly(cs);
+        DBUtils.closeQuietly(headerRS);
+        DBUtils.closeQuietly(resultRS);
+        DBUtils.closeQuietly(con);
     }
+
+    return breakdownResult;
 }
 
 
 ---
 
-Model:
+Assumptions:
 
-import java.util.List;
-import java.util.Map;
+1. Header Set:
+
+Only one column is retrieved from the header result set. This is stored as a single string in the BreakdownResult object.
+
+
+
+2. Result Set:
+
+Data from the result set is mapped directly to specific fields (value1, value2, etc.) in the BreakdownResult object.
+
+This assumes you know the exact number of columns and their order.
+
+
+
+3. BreakdownResult Class: Update your BreakdownResult class to have specific fields for the data, such as:
+
+
 
 public class BreakdownResult {
-    private List<String> headerSet;
-    private List<Map<String, Object>> resultSet;
-    private String outStatus;
+    private String headerSet;
+    private String value1;
+    private String value2;
+    private String value3;
+    private String status;
 
     // Getters and Setters
-    public List<String> getHeaderSet() {
+    public String getHeaderSet() {
         return headerSet;
     }
 
-    public void setHeaderSet(List<String> headerSet) {
+    public void setHeaderSet(String headerSet) {
         this.headerSet = headerSet;
     }
 
-    public List<Map<String, Object>> getResultSet() {
-        return resultSet;
+    public String getValue1() {
+        return value1;
     }
 
-    public void setResultSet(List<Map<String, Object>> resultSet) {
-        this.resultSet = resultSet;
+    public void setValue1(String value1) {
+        this.value1 = value1;
     }
 
-    public String getOutStatus() {
-        return outStatus;
+    public String getValue2() {
+        return value2;
     }
 
-    public void setOutStatus(String outStatus) {
-        this.outStatus = outStatus;
+    public void setValue2(String value2) {
+        this.value2 = value2;
+    }
+
+    public String getValue3() {
+        return value3;
+    }
+
+    public void setValue3(String value3) {
+        this.value3 = value3;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }
 
 
 ---
 
-Key Notes:
+Key Points:
 
-1. The stored procedure is executed using a CallableStatement.
+1. No Loops or Maps:
 
-
-2. The SYS_REFCURSOR is mapped to OracleTypes.CURSOR for retrieving result sets.
-
-
-3. The headerSet is retrieved as a list of column names.
-
-
-4. The resultSet is retrieved as a list of rows, where each row is a map of column-value pairs.
-
-
-5. Ensure that the oracle.jdbc dependency is included in your pom.xml for Oracle-specific types.
+Data is directly assigned to specific fields in the BreakdownResult object.
 
 
 
-Let me know if you need additional help or adjustments!
+2. Error Handling:
+
+If the procedure fails, an exception is thrown with the status returned.
+
+
+
+3. Clean Resource Management:
+
+All resources (connections, result sets, etc.) are properly closed in the finally block.
+
+
+
+
+Let me know if this approach works!
 
