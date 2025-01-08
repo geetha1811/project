@@ -1,0 +1,336 @@
+To handle the scenario where the breakdown result is fetched using three input fields (basicId, businessDate, and rc), here's how you can write the repository code:
+
+
+---
+
+Repository Code for Breakdown Result
+
+@Repository
+public class BreakDownRepository {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    public BreakDownResult getBreakdownResult(String basicId, String businessDate, String rc) throws ServiceException {
+        Connection con = null;
+        CallableStatement cs = null;
+        ResultSet rsHeader = null;
+        ResultSet rsResult = null;
+        BreakDownResult breakDownResult = new BreakDownResult();
+
+        try {
+            con = jdbcTemplate.getDataSource().getConnection();
+            cs = con.prepareCall("{call IRIS.SP_GET_RC_RESULT(?, ?, ?, ?, ?)}");
+
+            // Set input parameters
+            cs.setString(1, basicId);
+            cs.setString(2, businessDate);
+            cs.setString(3, rc);
+
+            // Register output parameters for header and result sets
+            cs.registerOutParameter(4, oracle.jdbc.OracleTypes.CURSOR); // Header Set
+            cs.registerOutParameter(5, oracle.jdbc.OracleTypes.CURSOR); // Result Set
+
+            // Execute the stored procedure
+            cs.execute();
+
+            // Fetch Header Set
+            rsHeader = (ResultSet) cs.getObject(4);
+            List<String> headerSet = new ArrayList<>();
+            while (rsHeader.next()) {
+                headerSet.add(rsHeader.getString("COLUMN_NAME"));
+            }
+
+            // Fetch Result Set
+            rsResult = (ResultSet) cs.getObject(5);
+            List<Map<String, Object>> resultSet = new ArrayList<>();
+            while (rsResult.next()) {
+                Map<String, Object> row = new HashMap<>();
+                for (String column : headerSet) {
+                    row.put(column, rsResult.getObject(column));
+                }
+                resultSet.add(row);
+            }
+
+            // Set Header and Result Data
+            breakDownResult.setHeaderSet(headerSet);
+            breakDownResult.setResultSet(resultSet);
+
+        } catch (Exception e) {
+            throw new ServiceException("Error fetching breakdown result", e);
+        } finally {
+            DbUtils.closeQuietly(rsHeader);
+            DbUtils.closeQuietly(rsResult);
+            DbUtils.closeQuietly(cs);
+            DbUtils.closeQuietly(con);
+        }
+
+        return breakDownResult;
+    }
+}
+
+
+---
+
+Explanation
+
+1. Input Parameters:
+
+The basicId, businessDate, and rc values are passed as inputs to the stored procedure (SP_GET_RC_RESULT).
+
+
+
+2. Stored Procedure Outputs:
+
+Two result sets are fetched:
+
+Header Set: Contains column names.
+
+Result Set: Contains data corresponding to those column names.
+
+
+
+
+3. Header and Result Mapping:
+
+The headerSet is used to map the resultSet dynamically by iterating over the columns in each row.
+
+
+
+4. Output Object:
+
+The result is stored in a BreakDownResult object that has two fields:
+
+headerSet: List of column names.
+
+resultSet: List of rows (maps) containing the data.
+
+
+
+
+
+
+---
+
+BreakDownResult Class
+
+public class BreakDownResult {
+    private List<String> headerSet;
+    private List<Map<String, Object>> resultSet;
+
+    // Getters and Setters
+    public List<String> getHeaderSet() {
+        return headerSet;
+    }
+
+    public void setHeaderSet(List<String> headerSet) {
+        this.headerSet = headerSet;
+    }
+
+    public List<Map<String, Object>> getResultSet() {
+        return resultSet;
+    }
+
+    public void setResultSet(List<Map<String, Object>> resultSet) {
+        this.resultSet = resultSet;
+    }
+}
+
+
+---
+
+Stored Procedure Example (SP_GET_RC_RESULT)
+
+CREATE OR REPLACE PROCEDURE SP_GET_RC_RESULT(
+    p_basic_id      IN  VARCHAR2,
+    p_business_date IN  VARCHAR2,
+    p_rc            IN  VARCHAR2,
+    p_header_set    OUT SYS_REFCURSOR,
+    p_result_set    OUT SYS_REFCURSOR
+) AS
+BEGIN
+    -- Fetch header set
+    OPEN p_header_set FOR
+        SELECT COLUMN_NAME
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME = 'BREAKDOWN_TABLE';
+
+    -- Fetch result set
+    OPEN p_result_set FOR
+        SELECT * 
+        FROM BREAKDOWN_TABLE
+        WHERE BASIC_ID = p_basic_id
+          AND BUSINESS_DATE = p_business_date
+          AND RC = p_rc;
+END;
+/
+
+
+---
+
+Key Notes
+
+1. Dynamic Columns:
+
+The code dynamically maps the result set data to the header set column names without hardcoding.
+
+
+
+2. Error Handling:
+
+Exceptions are caught and wrapped in a ServiceException for clarity.
+
+
+
+3. DbUtils:
+
+Ensure DbUtils is included to close resources properly.
+
+
+
+4. Frontend Integration:
+
+Return BreakDownResult as JSON to the frontend for seamless integration.
+
+
+
+
+Let me know if you need further assistance!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Yes, you can provide the input data (i.e., basicId, businessDate, and rc) in Swagger if your application exposes the endpoint for fetching the breakdown result.
+
+Steps to Provide Input Data in Swagger
+
+1. Ensure Your Controller Accepts Input Data
+Modify your controller method to accept these parameters. For example:
+
+@GetMapping(path = "/result", produces = MediaType.APPLICATION_JSON_VALUE)
+@Operation(
+    method = "GET",
+    summary = "Get Breakdown Result",
+    description = "Service fetches Breakdown Results"
+)
+public ResponseEntity<BreakDownResult> getBreakdownResult(
+    @RequestParam String basicId,
+    @RequestParam String businessDate,
+    @RequestParam String rc
+) throws Exception {
+    return ResponseEntity.ok(breakdownService.getBreakdownResult(basicId, businessDate, rc));
+}
+
+@RequestParam: Indicates that these inputs are query parameters in the request URL.
+
+The basicId, businessDate, and rc values will now be passed through the URL as query parameters.
+
+
+
+2. Access Swagger UI
+
+Open your Swagger UI in the browser, typically available at:
+
+http://<your-domain>:<port>/swagger-ui/index.html
+
+Replace <your-domain> and <port> with the appropriate values (e.g., localhost:8080).
+
+
+
+3. Locate the Breakdown Result Endpoint
+
+Find the endpoint /api/v1/breakDown/result in the Swagger UI.
+
+It should now have the three query parameters: basicId, businessDate, and rc.
+
+
+
+4. Provide Input Data in Swagger
+
+Click on the GET /api/v1/breakDown/result endpoint to expand it.
+
+You'll see input fields for basicId, businessDate, and rc.
+
+Fill in the values for these fields, e.g.:
+
+basicId: 12345
+
+businessDate: 2023-12-31
+
+rc: ABC
+
+
+Click the "Try it out" button.
+
+
+
+5. Execute the Request
+
+Swagger will send a request to your backend with the provided inputs.
+
+You'll see the API's response, which will include the headerSet and resultSet as JSON.
+
+
+
+
+
+---
+
+Example Swagger Request and Response
+
+Input (via Swagger)
+
+GET /api/v1/breakDown/result?basicId=12345&businessDate=2023-12-31&rc=ABC
+
+Response
+
+{
+  "headerSet": ["column1", "column2", "column3"],
+  "resultSet": [
+    { "column1": "value1", "column2": "value2", "column3": "value3" },
+    { "column1": "value4", "column2": "value5", "column3": "value6" }
+  ]
+}
+
+
+---
+
+Key Notes for Swagger Input
+
+1. Query Parameters:
+
+Use @RequestParam for query parameters (?key=value) in the request URL.
+
+
+
+2. Testing in Swagger:
+
+Ensure Swagger annotations like @Operation and @ApiResponses are properly defined in your controller.
+
+
+
+3. Validation:
+
+Add validation for basicId, businessDate, and rc if required (e.g., @NotNull, @Pattern).
+
+
+
+
+Let me know if you need help testing the endpoint in Swagger or refining the inputs!
+
+
+
