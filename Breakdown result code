@@ -1,0 +1,227 @@
+Below is the complete and correct code for achieving the desired output in Swagger. It ensures proper formatting for the headerSet, resultSet, and outstatus, avoiding duplication or misrepresentation.
+
+
+---
+
+1. Stored Procedure Result Handler
+
+This class handles the structure of the breakdown result from the stored procedure.
+
+import java.util.List;
+import java.util.Map;
+
+public class BreakdownResult {
+    private List<String> headerSet; // Column names
+    private List<Map<String, Object>> resultSet; // Rows of data
+    private String outStatus; // Output status
+
+    // Getters and setters
+    public List<String> getHeaderSet() {
+        return headerSet;
+    }
+
+    public void setHeaderSet(List<String> headerSet) {
+        this.headerSet = headerSet;
+    }
+
+    public List<Map<String, Object>> getResultSet() {
+        return resultSet;
+    }
+
+    public void setResultSet(List<Map<String, Object>> resultSet) {
+        this.resultSet = resultSet;
+    }
+
+    public String getOutStatus() {
+        return outStatus;
+    }
+
+    public void setOutStatus(String outStatus) {
+        this.outStatus = outStatus;
+    }
+}
+
+
+---
+
+2. Service Implementation
+
+This service calls the stored procedure and maps the results.
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.sql.DataSource;
+
+import org.springframework.stereotype.Service;
+
+@Service
+public class BreakdownService {
+    private final DataSource dataSource;
+
+    public BreakdownService(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    public BreakdownResult getBreakdownResult(String basicId, String businessDate, String rc) throws SQLException {
+        BreakdownResult result = new BreakdownResult();
+
+        try (Connection conn = dataSource.getConnection();
+             CallableStatement cs = conn.prepareCall("{CALL SP_GET_BREAKDOWN_RESULT(?, ?, ?, ?, ?, ?)}")) {
+
+            // Register input parameters
+            cs.setString(1, basicId);
+            cs.setString(2, businessDate);
+            cs.setString(3, rc);
+
+            // Register output parameters
+            cs.registerOutParameter(4, oracle.jdbc.OracleTypes.CURSOR); // Header set
+            cs.registerOutParameter(5, oracle.jdbc.OracleTypes.CURSOR); // Result set
+            cs.registerOutParameter(6, java.sql.Types.VARCHAR); // Output status
+
+            // Execute the stored procedure
+            cs.execute();
+
+            // Process header set
+            List<String> headerSet = new ArrayList<>();
+            try (ResultSet rs = (ResultSet) cs.getObject(4)) {
+                while (rs.next()) {
+                    headerSet.add(rs.getString(1)); // Assuming single column for headers
+                }
+            }
+            result.setHeaderSet(headerSet);
+
+            // Process result set
+            List<Map<String, Object>> resultSet = new ArrayList<>();
+            try (ResultSet rs = (ResultSet) cs.getObject(5)) {
+                while (rs.next()) {
+                    Map<String, Object> row = new HashMap<>();
+                    for (String column : headerSet) {
+                        row.put(column, rs.getObject(column));
+                    }
+                    resultSet.add(row);
+                }
+            }
+            result.setResultSet(resultSet);
+
+            // Process output status
+            result.setOutStatus(cs.getString(6));
+        }
+
+        return result;
+    }
+}
+
+
+---
+
+3. Controller
+
+The controller exposes the endpoint for the Swagger documentation.
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class BreakdownController {
+
+    @Autowired
+    private BreakdownService breakdownService;
+
+    @GetMapping("/breakdown")
+    public ResponseEntity<BreakdownResult> getBreakdownResult(
+            @RequestParam String basicId,
+            @RequestParam String businessDate,
+            @RequestParam String rc) {
+        try {
+            BreakdownResult result = breakdownService.getBreakdownResult(basicId, businessDate, rc);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+}
+
+
+---
+
+4. Swagger Documentation
+
+To fix the Swagger response format, annotate the BreakdownResult class explicitly and provide example values.
+
+BreakdownResult with Swagger Annotations:
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "Represents the breakdown result with headers, result data, and status.")
+public class BreakdownResult {
+
+    @Schema(description = "Column names of the result set", example = "[\"column1\", \"column2\", \"column3\"]")
+    private List<String> headerSet;
+
+    @Schema(description = "Rows of data corresponding to the column names", example = """
+        [
+          {"column1": "value1", "column2": "value2", "column3": "value3"},
+          {"column1": "value4", "column2": "value5", "column3": "value6"}
+        ]
+    """)
+    private List<Map<String, Object>> resultSet;
+
+    @Schema(description = "Output status of the stored procedure", example = "SUCCESS")
+    private String outStatus;
+
+    // Getters and setters
+}
+
+Swagger Configuration:
+
+If you want more control over the Swagger UI response schema, explicitly define it in your controller method using annotations:
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
+@RestController
+public class BreakdownController {
+
+    @GetMapping("/breakdown")
+    @Operation(summary = "Get Breakdown Result", description = "Fetches header set, result set, and output status.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved breakdown result"),
+        @ApiResponse(responseCode = "401", description = "Unauthorized access")
+    })
+    public ResponseEntity<BreakdownResult> getBreakdownResult(
+            @RequestParam String basicId,
+            @RequestParam String businessDate,
+            @RequestParam String rc) {
+        // Implementation here
+    }
+}
+
+
+---
+
+Expected Swagger Output
+
+This setup ensures Swagger generates the following schema for a 200 response:
+
+{
+  "headerSet": ["column1", "column2", "column3"],
+  "resultSet": [
+    {"column1": "value1", "column2": "value2", "column3": "value3"},
+    {"column1": "value4", "column2": "value5", "column3": "value6"}
+  ],
+  "outStatus": "SUCCESS"
+}
+
+Let me know if you need further adjustments or a walkthrough for implementation!
+
