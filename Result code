@@ -1,0 +1,188 @@
+Here's the complete code for calling the stored procedure, retrieving both the header set and result set, and returning it in a proper response format:
+
+1. Repository Layer: To call the stored procedure and fetch the result.
+
+import java.sql.*;
+import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+import oracle.jdbc.OracleTypes;
+
+@Repository
+public class BreakdownRepository {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    private static final String SP_GET_BREAKDOWN_RESULT = "{call SP_GET_BREAKDOWN_RESULT(?, ?, ?, ?, ?, ?)}";
+
+    public BreakdownResponse getBreakdownResult(String basicId, String businessDate, String rc) throws ServiceException {
+        DataSource dataSource = jdbcTemplate.getDataSource();
+        BreakdownResponse response = new BreakdownResponse();
+
+        try (Connection conn = dataSource.getConnection();
+             CallableStatement cs = conn.prepareCall(SP_GET_BREAKDOWN_RESULT)) {
+
+            // Register input parameters
+            cs.setString(1, basicId);
+            cs.setString(2, businessDate);
+            cs.setString(3, rc);
+
+            // Register output parameters
+            cs.registerOutParameter(4, OracleTypes.CURSOR); // Header set (column names)
+            cs.registerOutParameter(5, OracleTypes.CURSOR); // Result set (data)
+            cs.registerOutParameter(6, Types.VARCHAR); // Output status
+
+            cs.execute();
+
+            // Fetch column names (header set)
+            ResultSet headerSet = (ResultSet) cs.getObject(4);
+            response.setColumnNames(headerSet);
+
+            // Fetch result data
+            ResultSet resultSet = (ResultSet) cs.getObject(5);
+            response.setData(resultSet);
+
+            // Get output status
+            String status = cs.getString(6);
+            response.setStatus(status);
+
+        } catch (SQLException e) {
+            throw new ServiceException("Error executing stored procedure", e);
+        }
+
+        return response;
+    }
+}
+
+2. Service Layer: To call the repository method.
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class BreakdownService {
+
+    @Autowired
+    private BreakdownRepository breakdownRepository;
+
+    public BreakdownResponse getBreakdown(String basicId, String businessDate, String rc) throws ServiceException {
+        return breakdownRepository.getBreakdownResult(basicId, businessDate, rc);
+    }
+}
+
+3. Controller Layer: To expose the endpoint for Swagger.
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/breakdown")
+public class BreakdownController {
+
+    @Autowired
+    private BreakdownService breakdownService;
+
+    @GetMapping("/getBreakdownResult")
+    public BreakdownResponse getBreakdownResult(
+            @RequestParam String basicId,
+            @RequestParam String businessDate,
+            @RequestParam String rc) throws ServiceException {
+        return breakdownService.getBreakdown(basicId, businessDate, rc);
+    }
+}
+
+4. Response Object: To hold the result.
+
+import java.util.List;
+
+public class BreakdownResponse {
+
+    private List<String> columnNames;
+    private List<List<String>> data;
+    private String status;
+
+    public List<String> getColumnNames() {
+        return columnNames;
+    }
+
+    public void setColumnNames(ResultSet rs) throws SQLException {
+        while (rs.next()) {
+            columnNames.add(rs.getString(1)); // Assuming column names are in the first column
+        }
+    }
+
+    public List<List<String>> getData() {
+        return data;
+    }
+
+    public void setData(ResultSet rs) throws SQLException {
+        while (rs.next()) {
+            List<String> row = new ArrayList<>();
+            for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
+                row.add(rs.getString(i));
+            }
+            data.add(row);
+        }
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+}
+
+Explanation of Output:
+
+Input Parameters: When you call this endpoint, you will pass the following parameters:
+
+basicId (String)
+
+businessDate (String)
+
+rc (String)
+
+
+Output:
+
+The Swagger API will show the BreakdownResponse object, which consists of:
+
+columnNames: List of column names fetched from the header set.
+
+data: List of data rows corresponding to the column names.
+
+status: Status message returned by the stored procedure (e.g., success or failure).
+
+
+
+
+Swagger Output Example:
+
+{
+  "columnNames": ["Column1", "Column2", "Column3"],
+  "data": [
+    ["Value1_1", "Value1_2", "Value1_3"],
+    ["Value2_1", "Value2_2", "Value2_3"]
+  ],
+  "status": "Success"
+}
+
+Final Steps to Run:
+
+1. Ensure your stored procedure SP_GET_BREAKDOWN_RESULT exists in the database and is working as expected.
+
+
+2. Run the Spring Boot application.
+
+
+3. Go to the Swagger UI to test the getBreakdownResult endpoint, passing the three required parameters (basicId, businessDate, and rc).
+
+
+4. Swagger will show the BreakdownResponse in the response schema.
+
+
+
+This code structure should align with your team's setup and correctly fetch the header set and result set from the database.
