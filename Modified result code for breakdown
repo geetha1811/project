@@ -1,0 +1,267 @@
+Here is the repository layout with files separated into service, controller, and other components:
+
+
+---
+
+Repository Folder Structure
+
+project-root/
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── com/
+│   │   │       └── example/
+│   │   │           ├── controller/
+│   │   │           │   └── BreakdownController.java
+│   │   │           ├── service/
+│   │   │           │   └── BreakdownService.java
+│   │   │           ├── model/
+│   │   │           │   └── BreakdownResult.java
+│   │   │           ├── exception/
+│   │   │           │   └── ServiceException.java
+│   │   │           └── repository/
+│   │   │               └── BreakdownRepository.java
+│   │   ├── resources/
+│   │       ├── application.properties
+│   │       └── sql/
+│   │           └── stored-procedures.sql
+│   └── test/
+│       └── java/
+│           └── com/
+│               └── example/
+│                   └── BreakdownControllerTest.java
+└── pom.xml
+
+
+---
+
+1. BreakdownResult.java (Model)
+
+package com.example.model;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public class BreakdownResult {
+    @JsonProperty("HeaderSet")
+    private String headerSet;
+
+    @JsonProperty("ResultSet")
+    private String resultSet;
+
+    @JsonProperty("OutStatus")
+    private String outStatus;
+
+    // Getters and Setters
+    public String getHeaderSet() {
+        return headerSet;
+    }
+
+    public void setHeaderSet(String headerSet) {
+        this.headerSet = headerSet;
+    }
+
+    public String getResultSet() {
+        return resultSet;
+    }
+
+    public void setResultSet(String resultSet) {
+        this.resultSet = resultSet;
+    }
+
+    public String getOutStatus() {
+        return outStatus;
+    }
+
+    public void setOutStatus(String outStatus) {
+        this.outStatus = outStatus;
+    }
+}
+
+
+---
+
+2. BreakdownService.java (Service Layer)
+
+package com.example.service;
+
+import com.example.model.BreakdownResult;
+import com.example.repository.BreakdownRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class BreakdownService {
+
+    @Autowired
+    private BreakdownRepository breakdownRepository;
+
+    public BreakdownResult getBreakdownResult(String basicId, String businessDate, String rc) {
+        return breakdownRepository.getBreakdownData(basicId, businessDate, rc);
+    }
+}
+
+
+---
+
+3. BreakdownRepository.java (Repository Layer)
+
+package com.example.repository;
+
+import com.example.model.BreakdownResult;
+import org.springframework.stereotype.Repository;
+
+import javax.sql.DataSource;
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+@Repository
+public class BreakdownRepository {
+
+    private final DataSource dataSource;
+
+    public BreakdownRepository(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    public BreakdownResult getBreakdownData(String basicId, String businessDate, String rc) {
+        BreakdownResult result = new BreakdownResult();
+
+        try (Connection conn = dataSource.getConnection()) {
+            CallableStatement cs = conn.prepareCall("{CALL SP_GET_BREAKDOWN_RESULT(?, ?, ?, ?, ?, ?)}");
+
+            // Set input parameters
+            cs.setString(1, basicId);
+            cs.setString(2, businessDate);
+            cs.setString(3, rc);
+
+            // Register output parameters
+            cs.registerOutParameter(4, oracle.jdbc.OracleTypes.CURSOR);
+            cs.registerOutParameter(5, oracle.jdbc.OracleTypes.CURSOR);
+            cs.registerOutParameter(6, java.sql.Types.VARCHAR);
+
+            cs.execute();
+
+            // Fetch header set
+            ResultSet headerSet = (ResultSet) cs.getObject(4);
+            result.setHeaderSet(headerSet.toString());
+
+            // Fetch result set
+            ResultSet resultSet = (ResultSet) cs.getObject(5);
+            result.setResultSet(resultSet.toString());
+
+            // Fetch output status
+            result.setOutStatus(cs.getString(6));
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error fetching data from the database", e);
+        }
+
+        return result;
+    }
+}
+
+
+---
+
+4. BreakdownController.java (Controller Layer)
+
+package com.example.controller;
+
+import com.example.model.BreakdownResult;
+import com.example.service.BreakdownService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1")
+public class BreakdownController {
+
+    @Autowired
+    private BreakdownService breakdownService;
+
+    @GetMapping("/getBreakdownResult")
+    public ResponseEntity<BreakdownResult> getBreakdownResult(
+            @RequestParam String basicId,
+            @RequestParam String businessDate,
+            @RequestParam String rc) {
+        BreakdownResult result = breakdownService.getBreakdownResult(basicId, businessDate, rc);
+        return ResponseEntity.ok(result);
+    }
+}
+
+
+---
+
+5. ServiceException.java (Custom Exception)
+
+package com.example.exception;
+
+public class ServiceException extends RuntimeException {
+    public ServiceException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+
+---
+
+6. application.properties
+
+spring.datasource.url=jdbc:oracle:thin:@localhost:1521:XE
+spring.datasource.username=your_username
+spring.datasource.password=your_password
+spring.datasource.driver-class-name=oracle.jdbc.OracleDriver
+
+
+---
+
+7. stored-procedures.sql
+
+CREATE OR REPLACE PROCEDURE SP_GET_BREAKDOWN_RESULT(
+    basicId IN VARCHAR2,
+    businessDate IN VARCHAR2,
+    rc IN VARCHAR2,
+    headerSet OUT SYS_REFCURSOR,
+    resultSet OUT SYS_REFCURSOR,
+    outStatus OUT VARCHAR2
+) AS
+BEGIN
+    OPEN headerSet FOR SELECT COLUMN_NAME FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'YOUR_TABLE_NAME';
+    OPEN resultSet FOR SELECT * FROM YOUR_TABLE_NAME WHERE BASIC_ID = basicId;
+    outStatus := 'SUCCESS';
+END;
+
+
+---
+
+8. pom.xml
+
+<dependencies>
+    <!-- Spring Boot Starter -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter</artifactId>
+    </dependency>
+
+    <!-- Spring Boot Starter JDBC -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-jdbc</artifactId>
+    </dependency>
+
+    <!-- Oracle JDBC Driver -->
+    <dependency>
+        <groupId>com.oracle.database.jdbc</groupId>
+        <artifactId>ojdbc8</artifactId>
+        <version>19.8.0.0</version>
+    </dependency>
+</dependencies>
+
+
+---
+
+This complete breakdown ensures modularity and adherence to Spring Boot's architecture. Let me know if you want a zip version or further guidance!
+
