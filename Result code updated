@@ -1,0 +1,76 @@
+Based on the screenshots and information shared, it seems the output is being added twice to the HeaderSet or ResultSet. This issue might occur due to the following reasons:
+
+1. Duplicate Data in the ResultSet:
+
+The stored procedure itself might be returning duplicate rows in either the HeaderSet or ResultSet.
+
+
+
+2. Improper Loop Execution:
+
+If ResultSet or HeaderSet logic is being processed twice inadvertently, it can result in duplicates being added to the list.
+
+
+
+
+Steps to Debug:
+
+1. Check Stored Procedure:
+
+Validate if the stored procedure is returning duplicate rows for the HeaderSet and ResultSet.
+
+
+
+2. Debug the Code:
+
+Add logging statements right before adding data to HeaderSet and ResultSet to inspect what is being added and how many times the loop runs.
+
+
+Example:
+
+public void setHeaderSet(ResultSet rs) throws SQLException {
+    while (rs.next()) {
+        String columnName = rs.getString(columnIndex: 1);
+        HeaderSet.add(columnName);
+        log.info("Adding column to HeaderSet: " + columnName);
+    }
+}
+
+public void setResultSet(ResultSet rs) throws SQLException {
+    while (rs.next()) {
+        List<String> row = new ArrayList<>();
+        for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
+            row.add(rs.getString(i));
+        }
+        ResultSet.add(row.toString());
+        log.info("Adding row to ResultSet: " + row);
+    }
+}
+
+
+
+Fixing the Issue:
+
+If duplicates are confirmed, ensure the loops or logic aren't being invoked multiple times. Check:
+
+Single Execution of Methods:
+
+Ensure setHeaderSet and setResultSet methods are being called only once for each ResultSet.
+
+
+
+Expected Swagger Output:
+
+For your code, the Swagger response should look like this:
+
+{
+  "HeaderSet": ["column1", "column2", "column3"],
+  "ResultSet": [
+    ["data1", "data2", "data3"],
+    ["data4", "data5", "data6"]
+  ],
+  "OutStatus": "SUCCESS"
+}
+
+If duplicates are removed, you will not see duplicate rows or columns in HeaderSet and ResultSet. Let me know if you need help debugging further!
+
