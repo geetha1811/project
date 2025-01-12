@@ -1,0 +1,263 @@
+Below is the complete code for a Spring Boot application that interacts with a stored procedure to fetch the HeaderSet (column names) and ResultSet (data). This code includes passing three parameters (basicId, businessDate, and rc) to the stored procedure and correctly maps the output.
+
+
+---
+
+1. Directory Structure
+
+breakdown-result-api/
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── com/
+│   │   │       └── example/
+│   │   │           └── breakdown/
+│   │   │               ├── controller/
+│   │   │               │   └── BreakdownController.java
+│   │   │               ├── model/
+│   │   │               │   └── BreakdownResultResponse.java
+│   │   │               ├── service/
+│   │   │               │   └── BreakdownService.java
+│   │   │               └── repository/
+│   │   │                   └── BreakdownRepository.java
+│   │   └── resources/
+│   │       └── application.properties
+├── pom.xml
+
+
+---
+
+2. Code Implementation
+
+2.1. BreakdownController.java
+
+Handles incoming HTTP requests and delegates to the service.
+
+package com.example.breakdown.controller;
+
+import com.example.breakdown.model.BreakdownResultResponse;
+import com.example.breakdown.service.BreakdownService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/breakdown")
+public class BreakdownController {
+
+    @Autowired
+    private BreakdownService breakdownService;
+
+    @GetMapping("/result")
+    public ResponseEntity<BreakdownResultResponse> getBreakdownResult(
+            @RequestParam String basicId,
+            @RequestParam String businessDate,
+            @RequestParam String rc) {
+        BreakdownResultResponse response = breakdownService.getBreakdownResult(basicId, businessDate, rc);
+        return ResponseEntity.ok(response);
+    }
+}
+
+
+---
+
+2.2. BreakdownResultResponse.java
+
+Defines the response structure.
+
+package com.example.breakdown.model;
+
+import java.util.List;
+
+public class BreakdownResultResponse {
+    private List<String> headerSet; // Column names
+    private List<List<String>> resultSet; // Data rows
+    private String outstatus; // Status message
+
+    // Getters and setters
+    public List<String> getHeaderSet() {
+        return headerSet;
+    }
+
+    public void setHeaderSet(List<String> headerSet) {
+        this.headerSet = headerSet;
+    }
+
+    public List<List<String>> getResultSet() {
+        return resultSet;
+    }
+
+    public void setResultSet(List<List<String>> resultSet) {
+        this.resultSet = resultSet;
+    }
+
+    public String getOutstatus() {
+        return outstatus;
+    }
+
+    public void setOutstatus(String outstatus) {
+        this.outstatus = outstatus;
+    }
+}
+
+
+---
+
+2.3. BreakdownService.java
+
+Handles the business logic and interacts with the repository to call the stored procedure.
+
+package com.example.breakdown.service;
+
+import com.example.breakdown.model.BreakdownResultResponse;
+import com.example.breakdown.repository.BreakdownRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+@Service
+public class BreakdownService {
+
+    @Autowired
+    private BreakdownRepository breakdownRepository;
+
+    public BreakdownResultResponse getBreakdownResult(String basicId, String businessDate, String rc) {
+        return breakdownRepository.callStoredProcedure(basicId, businessDate, rc);
+    }
+}
+
+
+---
+
+2.4. BreakdownRepository.java
+
+This repository interacts with the database and calls the stored procedure.
+
+package com.example.breakdown.repository;
+
+import com.example.breakdown.model.BreakdownResultResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.sql.CallableStatement;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
+
+@Repository
+public class BreakdownRepository {
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    public BreakdownResultResponse callStoredProcedure(String basicId, String businessDate, String rc) {
+        BreakdownResultResponse response = new BreakdownResultResponse();
+
+        jdbcTemplate.execute(connection -> {
+            String query = "{call breakdown_proc(?, ?, ?, ?, ?, ?)}"; // Replace with your proc name
+            CallableStatement callableStatement = connection.prepareCall(query);
+
+            // Set input parameters
+            callableStatement.setString(1, basicId);
+            callableStatement.setString(2, businessDate);
+            callableStatement.setString(3, rc);
+
+            // Register output parameters
+            callableStatement.registerOutParameter(4, java.sql.Types.VARCHAR); // For outstatus
+            callableStatement.registerOutParameter(5, java.sql.Types.REF_CURSOR); // For headerSet
+            callableStatement.registerOutParameter(6, java.sql.Types.REF_CURSOR); // For resultSet
+
+            // Execute the procedure
+            callableStatement.execute();
+
+            // Fetch the outstatus
+            response.setOutstatus(callableStatement.getString(4));
+
+            // Fetch the headerSet
+            ResultSet headerSet = (ResultSet) callableStatement.getObject(5);
+            List<String> headers = new ArrayList<>();
+            while (headerSet.next()) {
+                headers.add(headerSet.getString(1)); // Assuming single column header
+            }
+            response.setHeaderSet(headers);
+
+            // Fetch the resultSet
+            ResultSet resultSet = (ResultSet) callableStatement.getObject(6);
+            List<List<String>> rows = new ArrayList<>();
+            while (resultSet.next()) {
+                List<String> row = new ArrayList<>();
+                int columnCount = resultSet.getMetaData().getColumnCount();
+                for (int i = 1; i <= columnCount; i++) {
+                    row.add(resultSet.getString(i));
+                }
+                rows.add(row);
+            }
+            response.setResultSet(rows);
+
+            return null;
+        });
+
+        return response;
+    }
+}
+
+
+---
+
+2.5. application.properties
+
+Database and server configuration.
+
+server.port=8080
+
+spring.datasource.url=jdbc:mysql://localhost:3306/your_database
+spring.datasource.username=your_username
+spring.datasource.password=your_password
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+
+---
+
+2.6. pom.xml
+
+Includes necessary dependencies.
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.example</groupId>
+    <artifactId>breakdown-result-api</artifactId>
+    <version>1.0.0</version>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+        </dependency>
+    </dependencies>
+</project>
+
+
+---
+
+Output Example in Swagger
+
+When you call /api/breakdown/result, the response will look like:
+
+{
+  "headerSet": ["Column1", "Column2", "Column3"],
+  "resultSet": [
+    ["Data1", "Data2", "Data3"],
+    ["Data4", "Data5", "Data6"]
+  ],
+  "outstatus": "Success"
+}
+
+Let me know if you need further adjustments!
+
