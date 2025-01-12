@@ -1,0 +1,208 @@
+Here is the full implementation to achieve the expected output structure for your API. The goal is to ensure that the Swagger response and actual API output match the format you provided.
+
+
+---
+
+1. Model Class (BreakdownResult)
+
+This class defines the response structure for your API.
+
+import java.util.List;
+import java.util.Map;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
+public class BreakdownResult {
+    // HeaderSet contains column names
+    @Schema(description = "Column names of the result set")
+    private List<String> headerSet;
+
+    // ResultSet contains rows of data
+    @Schema(description = "Rows of data corresponding to the column names")
+    private List<Map<String, Object>> resultSet;
+
+    // OutStatus is a simple string indicating success or failure
+    @Schema(description = "Output status of the stored procedure")
+    private String outStatus;
+
+    // Getters and setters
+    public List<String> getHeaderSet() {
+        return headerSet;
+    }
+
+    public void setHeaderSet(List<String> headerSet) {
+        this.headerSet = headerSet;
+    }
+
+    public List<Map<String, Object>> getResultSet() {
+        return resultSet;
+    }
+
+    public void setResultSet(List<Map<String, Object>> resultSet) {
+        this.resultSet = resultSet;
+    }
+
+    public String getOutStatus() {
+        return outStatus;
+    }
+
+    public void setOutStatus(String outStatus) {
+        this.outStatus = outStatus;
+    }
+}
+
+
+---
+
+2. Service Layer
+
+This layer fetches data from your database or stored procedure and maps it to the BreakdownResult class.
+
+import org.springframework.stereotype.Service;
+
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.*;
+
+import javax.sql.DataSource;
+
+@Service
+public class BreakdownService {
+
+    private final DataSource dataSource;
+
+    public BreakdownService(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    public BreakdownResult getBreakdownResult(String basicId, String businessDate, String rc) throws SQLException {
+        BreakdownResult result = new BreakdownResult();
+
+        try (Connection conn = dataSource.getConnection()) {
+            CallableStatement cs = conn.prepareCall("{call SP_GET_BREAKDOWN_RESULT(?, ?, ?, ?, ?, ?)}");
+
+            // Register input parameters
+            cs.setString(1, basicId);
+            cs.setString(2, businessDate);
+            cs.setString(3, rc);
+
+            // Register output parameters
+            cs.registerOutParameter(4, oracle.jdbc.OracleTypes.CURSOR); // Header set
+            cs.registerOutParameter(5, oracle.jdbc.OracleTypes.CURSOR); // Result set
+            cs.registerOutParameter(6, java.sql.Types.VARCHAR);         // OutStatus
+
+            // Execute stored procedure
+            cs.execute();
+
+            // Fetch HeaderSet
+            try (ResultSet headerSetRs = (ResultSet) cs.getObject(4)) {
+                List<String> headerSet = new ArrayList<>();
+                while (headerSetRs.next()) {
+                    headerSet.add(headerSetRs.getString(1));
+                }
+                result.setHeaderSet(headerSet);
+            }
+
+            // Fetch ResultSet
+            try (ResultSet resultSetRs = (ResultSet) cs.getObject(5)) {
+                List<Map<String, Object>> resultSet = new ArrayList<>();
+                while (resultSetRs.next()) {
+                    Map<String, Object> row = new HashMap<>();
+                    for (String columnName : result.getHeaderSet()) {
+                        row.put(columnName, resultSetRs.getObject(columnName));
+                    }
+                    resultSet.add(row);
+                }
+                result.setResultSet(resultSet);
+            }
+
+            // Fetch OutStatus
+            result.setOutStatus(cs.getString(6));
+        }
+
+        return result;
+    }
+}
+
+
+---
+
+3. Controller Layer
+
+This layer exposes the endpoint for the API and uses the service to fetch data.
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api")
+public class BreakdownController {
+
+    private final BreakdownService breakdownService;
+
+    @Autowired
+    public BreakdownController(BreakdownService breakdownService) {
+        this.breakdownService = breakdownService;
+    }
+
+    @GetMapping("/breakdown")
+    public ResponseEntity<BreakdownResult> getBreakdownResult(
+            @RequestParam String basicId,
+            @RequestParam String businessDate,
+            @RequestParam String rc) {
+        try {
+            BreakdownResult result = breakdownService.getBreakdownResult(basicId, businessDate, rc);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+}
+
+
+---
+
+4. Swagger Example Value
+
+To display the correct example in Swagger, ensure the model reflects this structure. Swagger will automatically generate a schema if you use proper annotations in the model.
+
+Expected Swagger Example:
+
+{
+  "HeaderSet": [
+    "column1",
+    "column2",
+    "column3"
+  ],
+  "ResultSet": [
+    {
+      "column1": "value1",
+      "column2": "value2",
+      "column3": "value3"
+    },
+    {
+      "column1": "value4",
+      "column2": "value5",
+      "column3": "value6"
+    }
+  ],
+  "OutStatus": "SUCCESS"
+}
+
+
+---
+
+Testing the API
+
+Deploy the code and access the Swagger UI.
+
+Test the /api/breakdown endpoint with appropriate parameters.
+
+Verify that the response matches the example structure.
+
+
+Let me know if you need further assistance!
+
