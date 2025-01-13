@@ -1,0 +1,212 @@
+Based on your uploaded HTML structure and the earlier requirements, I'll adjust the code accordingly. Here's the modified component, service, and HTML structure.
+
+
+---
+
+Service File: basicDetailsService.ts
+
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class BasicDetailsService {
+  private baseUrl = 'your-backend-url'; // Replace with your backend URL
+
+  constructor(private http: HttpClient) {}
+
+  getDropdown(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/rest/breakDown/dropDown`);
+  }
+
+  getBreakdownResult(basicId: string, businessDate: string, rc: string): Observable<any> {
+    return this.http.get(`${this.baseUrl}/rest/breakDown/result/${basicId}/${businessDate}/${rc}`);
+  }
+}
+
+
+---
+
+Component File: basicMappingPopupModal.component.ts
+
+import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { BasicDetailsService } from './basicDetailsService';
+
+@Component({
+  selector: 'app-basic-mapping-popup-modal',
+  templateUrl: './basicMappingPopupModal.component.html',
+  styleUrls: ['./basicMappingPopupModal.component.css']
+})
+export class BasicMappingPopupModalComponent implements OnInit {
+  breakdownForm: FormGroup;
+  dropdownOptions: any[] = [];
+  tableHeaders: string[] = [];
+  tableData: any[] = [];
+  description: string = '';
+
+  constructor(
+    private fb: FormBuilder,
+    private basicDetailsService: BasicDetailsService
+  ) {
+    this.breakdownForm = this.fb.group({
+      dropdown: [null],
+      chrDate: [null]
+    });
+  }
+
+  ngOnInit(): void {
+    this.basicDetailsService.getDropdown().subscribe((data: any) => {
+      this.dropdownOptions = data;
+    });
+  }
+
+  onDropdownSelect(option: any): void {
+    const selectedOption = this.dropdownOptions.find(opt => opt.name === option.target.value);
+    this.description = selectedOption ? selectedOption.description : '';
+  }
+
+  onRun(): void {
+    const { dropdown, chrDate } = this.breakdownForm.value;
+
+    if (!dropdown || !chrDate) {
+      alert('Please select both dropdown and date');
+      return;
+    }
+
+    const selectedOption = this.dropdownOptions.find(opt => opt.name === dropdown);
+    const basicId = selectedOption.id;
+    const rc = 'default-rc'; // Replace with your default RC logic
+
+    this.basicDetailsService.getBreakdownResult(basicId, chrDate, rc).subscribe((response: any) => {
+      this.tableHeaders = response.headerSet;
+      this.tableData = response.resultSet;
+    });
+  }
+}
+
+
+---
+
+HTML File: basicMappingPopupModal.component.html
+
+This HTML matches the uploaded structure with minor adjustments.
+
+<div>
+  <!-- Dropdown -->
+  <div class="form-group">
+    <span class="text">R/D Categories</span>
+    <select id="dropdown" class="form-control" (change)="onDropdownSelect($event)" formControlName="dropdown">
+      <option *ngFor="let option of dropdownOptions" [value]="option.name">{{ option.name }}</option>
+    </select>
+  </div>
+
+  <!-- Description -->
+  <div class="form-group">
+    <span class="text">Source Description</span>
+    <input
+      type="text"
+      class="form-control"
+      [value]="description"
+      placeholder="Source description will appear here"
+      disabled
+    />
+  </div>
+
+  <!-- Date Picker -->
+  <div class="form-group">
+    <span class="text">Set Date</span>
+    <input
+      type="text"
+      class="form-control"
+      placeholder="DD-MM-YYYY"
+      style="border: 1px solid #ccc;"
+      ng2-datetime-picker
+      formControlName="chrDate"
+    />
+  </div>
+
+  <!-- Run Button -->
+  <div class="form-group">
+    <button type="button" class="btn btn-danger pull-left" (click)="onRun()">Run</button>
+  </div>
+
+  <!-- Table -->
+  <div *ngIf="tableHeaders.length && tableData.length">
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th *ngFor="let header of tableHeaders">{{ header }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of tableData">
+          <td *ngFor="let header of tableHeaders">{{ row[header] }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+---
+
+Explanation of Integration
+
+1. Dropdown:
+
+Fetches dropdown options from the backend API /rest/breakDown/dropDown.
+
+Displays options in the dropdown and updates the description field when an option is selected.
+
+
+
+2. Date Picker:
+
+Uses ng2-datetime-picker to allow users to pick dates in DD-MM-YYYY format.
+
+
+
+3. Run Button:
+
+Validates the form and fetches breakdown results using /rest/breakDown/result/{basicId}/{businessDate}/{rc}.
+
+Updates tableHeaders and tableData to populate the results table.
+
+
+
+4. Table:
+
+Dynamically displays headers and data from the API response.
+
+
+
+
+
+---
+
+Styles (basicMappingPopupModal.component.css)
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.table {
+  margin-top: 20px;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.table th, .table td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
+}
+
+
+---
+
+Let me know if you need further adjustments!
+
