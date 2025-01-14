@@ -1,0 +1,189 @@
+Thank you for the details and the screenshot. To bring this data (both headerSet and resultSet) from the backend to the frontend and display it dynamically, follow these steps:
+
+
+---
+
+Step 1: Update the API Service
+
+Ensure your service fetches and processes the headerSet and resultSet returned by the backend.
+
+Updated Service Code:
+
+getBreakdownResult(basicId: string, businessDate: string, rc: string): Observable<any> {
+  const url =
+    environment.gatewayURL +
+    'api/v1/breakDown/result/' +
+    basicId +
+    '/' +
+    businessDate +
+    '/' +
+    rc +
+    '/';
+
+  return this.http.get(url, this.authService.authHeaderOptions());
+}
+
+This service fetches the data from the backend and returns it as an observable.
+
+
+---
+
+Step 2: Update the Component
+
+1. Call the API on Button Click.
+
+
+2. Store the headerSet and resultSet in Variables.
+
+
+3. Render the Data Dynamically in the Template.
+
+
+
+Component Code:
+
+import { Component } from '@angular/core';
+import { BreakdownService } from './breakdown.service';
+
+@Component({
+  selector: 'app-breakdown',
+  templateUrl: './breakdown.component.html',
+  styleUrls: ['./breakdown.component.css'],
+})
+export class BreakdownComponent {
+  basicId = '123'; // Replace with actual logic to fetch or set basicId
+  businessDate: string = ''; // Bound to the date picker
+  rc: string = ''; // Bound to the dropdown
+  dropdownOptions = [
+    { id: 'option1', label: 'Option 1' },
+    { id: 'option2', label: 'Option 2' },
+  ];
+
+  // To store data from API
+  headers: string[] = []; // Stores headerSet (column names)
+  results: any[] = []; // Stores resultSet (data for the columns)
+
+  constructor(private breakdownService: BreakdownService) {}
+
+  onRun() {
+    // Validate user inputs
+    if (!this.rc || !this.businessDate) {
+      alert('Please select an option and a date.');
+      return;
+    }
+
+    // Call the API
+    this.breakdownService
+      .getBreakdownResult(this.basicId, this.businessDate, this.rc)
+      .subscribe(
+        (response) => {
+          // Store headerSet and resultSet in variables
+          this.headers = response.headerSet || [];
+          this.results = response.resultSet || [];
+        },
+        (error) => {
+          console.error('Error fetching breakdown result:', error);
+          alert('Failed to fetch data.');
+        }
+      );
+  }
+}
+
+
+---
+
+Step 3: Render the Data in the Template
+
+Use an Angular table (<table>) to display the headers and results dynamically.
+
+Template Code:
+
+<div>
+  <!-- Dropdown -->
+  <label for="dropdown">Select Option:</label>
+  <select [(ngModel)]="rc" id="dropdown">
+    <option *ngFor="let option of dropdownOptions" [value]="option.id">{{ option.label }}</option>
+  </select>
+
+  <!-- Date Picker -->
+  <label for="businessDate">Select Date:</label>
+  <input type="date" [(ngModel)]="businessDate" id="businessDate" />
+
+  <!-- Run Button -->
+  <button (click)="onRun()">Run</button>
+</div>
+
+<!-- Dynamic Table -->
+<div *ngIf="headers.length > 0 && results.length > 0">
+  <table>
+    <thead>
+      <tr>
+        <th *ngFor="let header of headers">{{ header }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of results">
+        <td *ngFor="let header of headers">{{ row[header] }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+---
+
+How It Works:
+
+1. API Call:
+
+When the user clicks "Run," the onRun() method is called.
+
+The method calls the API and retrieves the headerSet (column names) and resultSet (data for columns).
+
+
+
+2. Dynamic Data Binding:
+
+The headers array is used to render the table headers.
+
+The results array is used to render the table rows, dynamically matching the headers.
+
+
+
+3. Validation:
+
+Ensures the user selects a valid dropdown option and date before making the API call.
+
+
+
+4. Error Handling:
+
+Displays an error message if the API call fails.
+
+
+
+
+
+---
+
+Sample Output:
+
+If the API returns:
+
+{
+  "headerSet": ["AS_OF_DATE", "BASIC_ID", "PRODUCT_LINE"],
+  "resultSet": [
+    { "AS_OF_DATE": "2025-01-01", "BASIC_ID": "123", "PRODUCT_LINE": "Line1" },
+    { "AS_OF_DATE": "2025-01-02", "BASIC_ID": "124", "PRODUCT_LINE": "Line2" }
+  ]
+}
+
+The table will look like this:
+
+
+---
+
+Summary:
+
+This approach dynamically fetches the column names and data from the backend and displays them in a table. It ensures the frontend updates automatically when the API response changes. You can further style the table using CSS or a UI library like Angular Material.
+
