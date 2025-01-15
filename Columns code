@@ -1,0 +1,167 @@
+Based on the provided response structure, it appears that your backend is sending a headerset and a resultSet, along with an outStatus. Below is how you can process this response and dynamically set the columns and data in your frontend.
+
+
+---
+
+Expected Response Structure
+
+{
+  "outStatus": "SUCCESS",
+  "headerset": [
+    "AS OF DATE", "BASIC ID", "LEGAL ENTITY NAME", "PRODUCT LINE", 
+    "BASIC MONITORING BRANCH CODE", "BASIC BOOKING BRANCH CODE"
+  ],
+  "resultSet": [
+    [
+      "2024-12-16 00:00:00.0", "BSC127545", "Entity 1", "Line 1", 
+      "Code 1", "Code 2"
+    ],
+    [
+      "2024-12-16 00:00:00.0", "BSC127546", "Entity 2", "Line 2", 
+      "Code 3", "Code 4"
+    ]
+  ]
+}
+
+
+---
+
+Steps to Implement
+
+TypeScript Code
+
+Update your component to process the headerset and resultSet:
+
+import { Component } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+
+@Component({
+  selector: 'app-breakdown-grid',
+  templateUrl: './breakdown-grid.component.html',
+  styleUrls: ['./breakdown-grid.component.css']
+})
+export class BreakdownGridComponent {
+  columnDefs: any[] = []; // Column definitions for the grid
+  rowData: any[] = []; // Row data for the grid
+  loading: boolean = false; // Loading state
+
+  constructor(private http: HttpClient) {}
+
+  // Method to fetch data when the "Run" button is clicked
+  onRun(): void {
+    this.loading = true; // Show loading spinner
+
+    this.http.get<any>('http://your-backend-api-url.com/getBreakdownData').subscribe({
+      next: (response) => {
+        console.log('Backend Response:', response);
+
+        if (response.outStatus === 'SUCCESS' && response.headerset && response.resultSet) {
+          // Set column definitions from headerset
+          this.columnDefs = response.headerset.map((header: string) => ({
+            headerName: header.replace(/_/g, ' '), // Format header name
+            field: header, // Field name for the column
+            sortable: true, // Enable sorting
+            filter: true, // Enable filtering
+            resizable: true // Enable resizing
+          }));
+
+          // Map resultSet to row data
+          this.rowData = response.resultSet.map((row: any[]) => {
+            const rowDataObj: any = {};
+            response.headerset.forEach((header: string, index: number) => {
+              rowDataObj[header] = row[index];
+            });
+            return rowDataObj;
+          });
+        } else {
+          console.error('Invalid response format or outStatus is not SUCCESS.');
+        }
+
+        this.loading = false; // Hide loading spinner
+      },
+      error: (error) => {
+        console.error('Error fetching data:', error);
+        this.loading = false; // Hide loading spinner
+      }
+    });
+  }
+}
+
+
+---
+
+HTML Code
+
+Update the HTML template to display the data dynamically:
+
+<div>
+  <button (click)="onRun()">Run</button> <!-- Run button -->
+</div>
+
+<div *ngIf="loading">Loading...</div> <!-- Loading spinner -->
+
+<!-- ag-Grid to display data -->
+<ag-grid-angular
+  class="ag-theme-alpine"
+  [rowData]="rowData"
+  [columnDefs]="columnDefs"
+  [defaultColDef]="{ sortable: true, filter: true, resizable: true }"
+  [pagination]="true"
+  style="width: 100%; height: 500px;">
+</ag-grid-angular>
+
+
+---
+
+Expected Behavior
+
+1. The onRun method will fetch data from the backend.
+
+
+2. headerset will be used to create dynamic column definitions.
+
+
+3. resultSet will be transformed into a row-data object that matches the columns.
+
+
+4. The ag-grid table will display the dynamically generated columns and rows.
+
+
+
+
+---
+
+Example Output
+
+If the backend sends the response as described, you should see:
+
+
+---
+
+Troubleshooting Tips
+
+1. Invalid Response Format:
+
+Ensure headerset and resultSet in the response match the expected structure.
+
+Use console.log(response) to debug.
+
+
+
+2. No Data Displayed:
+
+Check that columnDefs and rowData are being set correctly.
+
+Verify that ag-grid-angular is correctly configured.
+
+
+
+3. Styling Issues:
+
+Ensure the ag-theme-alpine CSS is properly loaded in your application.
+
+
+
+
+Let me know if you encounter any further issues!
+
