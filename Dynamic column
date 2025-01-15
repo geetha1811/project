@@ -1,0 +1,148 @@
+To dynamically set the column names and populate data using the backend response where the headerset contains column names and resultset contains the data, follow the steps below:
+
+
+---
+
+TypeScript (.ts file)
+
+import { Component } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+
+@Component({
+  selector: 'app-breakdown',
+  templateUrl: './breakdown.component.html',
+  styleUrls: ['./breakdown.component.css']
+})
+export class BreakdownComponent {
+  columnDefs: any[] = []; // For dynamic column headers
+  rowData: any[] = [];    // For dynamic row data
+  loading: boolean = false; // Loading spinner state
+
+  constructor(private http: HttpClient) {}
+
+  // Method triggered by the "Run" button
+  onRun(): void {
+    this.loading = true; // Start loading indicator
+
+    // Backend API URL to fetch the breakdown data
+    const apiUrl = 'http://your-backend-api-url.com/getBreakdownData';
+
+    this.http.get<any>(apiUrl).subscribe({
+      next: (response) => {
+        if (response.headerset && response.resultset) {
+          // Map headerset to column definitions
+          this.columnDefs = response.headerset.map((header: string) => ({
+            headerName: header.replace(/_/g, ' '), // Replace underscores with spaces for display
+            field: header,                        // The actual field key
+            sortable: true,
+            filter: true,
+            resizable: true
+          }));
+
+          // Set the row data
+          this.rowData = response.resultset;
+        } else {
+          console.error('Invalid response format:', response);
+        }
+
+        this.loading = false; // Stop loading indicator
+      },
+      error: (error) => {
+        console.error('Error fetching breakdown data:', error);
+        this.loading = false; // Stop loading on error
+      }
+    });
+  }
+}
+
+
+---
+
+HTML (.html file)
+
+<div>
+  <!-- "Run" button -->
+  <button (click)="onRun()" class="btn btn-primary">Run</button>
+</div>
+
+<!-- Loading spinner -->
+<div *ngIf="loading" class="loading-spinner">
+  Loading...
+</div>
+
+<!-- Dynamic ag-grid table -->
+<div class="ag-theme-alpine" style="height: 500px; width: 100%;" *ngIf="!loading">
+  <ag-grid-angular
+    [rowData]="rowData"              <!-- Bind dynamic row data -->
+    [columnDefs]="columnDefs"        <!-- Bind dynamic column definitions -->
+    [defaultColDef]="{ resizable: true, sortable: true, filter: true }"
+    domLayout="autoHeight"
+    class="ag-theme-alpine">
+  </ag-grid-angular>
+</div>
+
+
+---
+
+Backend Response Format
+
+Ensure your backend API sends a response in the following structure:
+
+{
+  "headerset": ["AS_OF_DATE", "BASIC_ID", "LEGAL_ENTITY_NAME", "PRODUCT_LINE"],
+  "resultset": [
+    { "AS_OF_DATE": "2025-01-01", "BASIC_ID": "BSC127545", "LEGAL_ENTITY_NAME": "Entity 1", "PRODUCT_LINE": "Line 1" },
+    { "AS_OF_DATE": "2025-01-02", "BASIC_ID": "BSC127546", "LEGAL_ENTITY_NAME": "Entity 2", "PRODUCT_LINE": "Line 2" }
+  ]
+}
+
+
+---
+
+Key Features of the Code:
+
+1. Dynamic Columns: Columns are dynamically created from headerset.
+
+
+2. Dynamic Data: Rows are populated with resultset.
+
+
+3. Run Button: Triggers the fetch of data and updates the grid.
+
+
+4. Error Handling: Logs any issues with the API call or response format.
+
+
+
+
+---
+
+Steps to Implement:
+
+1. Replace apiUrl in the .ts file with your actual API endpoint.
+
+
+2. Add HttpClientModule in your AppModule:
+
+import { HttpClientModule } from '@angular/common/http';
+
+@NgModule({
+  imports: [HttpClientModule]
+})
+export class AppModule {}
+
+
+3. Install ag-grid:
+
+npm install ag-grid-angular ag-grid-community
+
+
+4. Ensure your backend API provides the response in the described format.
+
+
+
+
+---
+
+Let me know if you need any additional help!
+
