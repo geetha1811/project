@@ -1,0 +1,138 @@
+To format the date in HTML and the associated TypeScript component (component.ts), you can follow these steps.
+
+
+---
+
+In HTML
+
+Modify the displayed date or the format of the date bound to the input element.
+
+Example:
+
+<div class="form-group">
+  <label for="businessDate">Select Date:</label>
+  <div class="input-group">
+    <!-- Bind the formatted date using [(ngModel)] or formControlName -->
+    <input 
+      type="date" 
+      formControlName="chFromDate" 
+      class="form-control"
+      id="businessDate"
+      (change)="onDateChange($event)" 
+      [value]="formattedDate" 
+    />
+    <div class="input-group-append">
+      <button class="btn btn-danger" type="button">
+        <img src="./assets/calendar.png" height="20" width="25" />
+      </button>
+    </div>
+  </div>
+</div>
+
+Here:
+
+1. The formattedDate variable is set in your component to hold the date in DD-MMM-YYYY format.
+
+
+2. The (change)="onDateChange($event)" is used to detect changes and update the value.
+
+
+
+
+---
+
+In the Component (TS File)
+
+In the corresponding component.ts file, implement a method to handle date formatting.
+
+Example:
+
+import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-breakdown',
+  templateUrl: './breakdown.component.html',
+  styleUrls: ['./breakdown.component.css']
+})
+export class BreakdownComponent {
+  businessDate: string = ''; // Original date in YYYY-MM-DD format
+  formattedDate: string = ''; // Formatted date in DD-MMM-YYYY format
+
+  // Function to format the date
+  formatDate(date: string): string {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const dateObj = new Date(date);  // Parse the input date
+    const day = dateObj.getDate();
+    const month = months[dateObj.getMonth()];
+    const year = dateObj.getFullYear();
+    return `${day < 10 ? '0' + day : day}-${month}-${year}`; // Format as DD-MMM-YYYY
+  }
+
+  // Function to handle date change in the input field
+  onDateChange(event: any): void {
+    const inputDate = event.target.value; // Get the selected date (YYYY-MM-DD)
+    this.businessDate = inputDate; // Store the original date
+    this.formattedDate = this.formatDate(inputDate); // Format the date
+    console.log('Formatted Date:', this.formattedDate); // Log for debugging
+  }
+
+  // Example usage to pre-fill the formatted date
+  ngOnInit(): void {
+    // Assume some default date is set initially
+    const defaultDate = '2024-12-16';
+    this.businessDate = defaultDate;
+    this.formattedDate = this.formatDate(defaultDate);
+  }
+}
+
+
+---
+
+How This Works
+
+1. Date Input Binding:
+
+The <input> element is bound to formattedDate using [value]="formattedDate".
+
+When the user changes the date, (change) triggers onDateChange($event).
+
+
+
+2. Formatting Logic:
+
+The formatDate method converts the date from YYYY-MM-DD to DD-MMM-YYYY format.
+
+
+
+3. Initialization:
+
+In ngOnInit(), you can set an initial default date and format it.
+
+
+
+
+
+---
+
+Example Behavior
+
+1. User selects 2024-12-16 in the date picker.
+
+
+2. The onDateChange function triggers and formats the date to 16-Dec-2024.
+
+
+3. The formatted date is logged in the console and displayed in the bound input field.
+
+
+
+
+---
+
+Bonus: Display Both Formats
+
+If you want to show both formats (e.g., YYYY-MM-DD and DD-MMM-YYYY), you can add another input element or text field in the HTML:
+
+<p>Original Date: {{ businessDate }}</p>
+<p>Formatted Date: {{ formattedDate }}</p>
+
