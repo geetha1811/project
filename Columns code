@@ -165,3 +165,143 @@ Ensure the ag-theme-alpine CSS is properly loaded in your application.
 
 Let me know if you encounter any further issues!
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sure! Based on the issues you've mentioned, here is the modified version of your code. I’ve added checks for headerSet and resultSet to ensure they are arrays and properly logged the response to help identify the root cause of the issue.
+
+console.log('on run initiated');
+
+// Check if breakdownViewCode and basicId are undefined
+if (this.basicId === undefined && this.breakdownViewCode) {
+    this.basicId = this.breakdownViewCode;
+    console.log('<<<<<<<<.......basicCode initialised....>>>>', this.breakdownViewCode);
+
+    this.breakdownService.getBreakdownResult(this.breakdownViewCode, this.businessDate, this.rc).subscribe(response => {
+        console.log('basicId checking....>>>>', this.breakdownViewCode);
+        console.log('businessDate checking', this.businessDate);
+        console.log('checking onrun response', response);
+
+        // Log the entire response structure
+        console.log('Response:', response);
+        console.log('headerSet:', response.headerSet);
+        console.log('resultSet:', response.resultSet);
+
+        // Check if response.outStatus is 'SUCCESS' and validate headerSet and resultSet
+        if (response.outStatus === 'SUCCESS' && Array.isArray(response.headerSet) && Array.isArray(response.resultSet)) {
+            console.log('checking outstatus', response.outStatus);
+
+            // Dynamically generate columnDefs based on headerSet
+            this.columnDefs = response.headerSet.map((header: string) => ({
+                headerName: header.replace(/_/g, ''),
+                field: header,
+                sortable: true,
+                filter: true,
+                resizable: true
+            }));
+
+            // Dynamically generate rowData based on resultSet
+            this.rowData = response.resultSet.map((row: any[]) => {
+                const rowDataObj: any = {};
+                response.headerSet.forEach((header: string, index: number) => {
+                    rowDataObj[header] = row[index];
+                });
+                return rowDataObj;
+            });
+
+        } else {
+            // Handle invalid response format
+            console.error('Invalid response format or outStatus is not SUCCESS.');
+            this.spinner.hide();
+            this.toastr.errorToastr('Result Fetch Failed', 'Breakdown', {
+                toastTimeout: 3000,
+                position: 'bottom-right',
+                showCloseButton: true
+            });
+        }
+    }, error => {
+        // Handle error in the request
+        this.loading = false;
+        console.error('Error fetching breakdown result:', error);
+        this.spinner.hide();
+        this.toastr.errorToastr('Error Fetching Data', 'Breakdown', {
+            toastTimeout: 3000,
+            position: 'bottom-right',
+            showCloseButton: true
+        });
+    });
+}
+
+// Debugging Form Data
+const formData = this.breakdownForm.value;
+console.log('selected Form Data:', formData);
+
+this.queryOutput = {
+    search: formData.quickSearch,
+    description: formData.sourceDescription,
+    date: formData.selectedDate
+};
+
+Modifications and Additions:
+
+1. Log Full Response:
+
+I added console.log('Response:', response); to log the full response for debugging. This will help verify the structure of headerSet and resultSet.
+
+
+
+2. Check for Arrays:
+
+I've wrapped the condition if (response.outStatus === 'SUCCESS' && Array.isArray(response.headerSet) && Array.isArray(response.resultSet)) to ensure that both headerSet and resultSet are arrays before attempting to call .map() on them.
+
+
+
+3. Error Handling:
+
+I made sure that if outStatus is not 'SUCCESS', or if headerSet or resultSet are not arrays, the code gracefully handles the failure by logging the error and displaying a toast message.
+
+
+
+4. Error Handling in API Request:
+
+In case of an error in the HTTP request, I added error handling with the spinner.hide() and the appropriate error message in the toast.
+
+
+
+
+Debugging Tips:
+
+After running the above code, check your browser console to see the logs for response, headerSet, and resultSet. Ensure that these values are in the correct format (arrays) and that the outStatus is 'SUCCESS'.
+
+If you encounter further issues, please share the exact output from the console logs for better analysis.
+
+
+Let me know if you need any further modifications or if this resolves your issue!
+
