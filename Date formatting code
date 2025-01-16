@@ -1,0 +1,107 @@
+It seems that the onDateChange event is not being handled correctly because it's wrapped within an OwlDateTimeInputDirective. The event value is an object rather than a raw Date or string.
+
+The value you're receiving in the onDateChange method is likely an event that has additional properties, such as value, instead of directly being a Date object or a string.
+
+To fix this, we need to ensure you're extracting the actual Date from the event object. Let's modify the onDateChange method to handle this properly.
+
+Correct Code to Extract the Date from OwlDateTime Event:
+
+onDateChange(event: any): void {
+  console.log('Date Change Event:', event);
+
+  // Extract the actual Date from the event
+  let date: Date;
+
+  if (event instanceof Date) {
+    // If the event is already a Date object, use it directly
+    date = event;
+  } else if (event.value instanceof Date) {
+    // If the event has a value property that is a Date object
+    date = event.value;
+  } else if (typeof event.value === 'string') {
+    // If the event value is a string, parse it into a Date object
+    date = new Date(event.value);
+  } else {
+    console.error('Invalid date event type:', event);
+    return; // Exit if invalid event type
+  }
+
+  // Check if the date is valid
+  if (isNaN(date.getTime())) {
+    console.error('Invalid date:', event);
+    return; // Exit if invalid date
+  }
+
+  // Format the date as 'DD-MMM-YYYY'
+  this.businessDate = this.formatDate(date);
+  console.log('Formatted Business Date:', this.businessDate);
+
+  // Construct the URL with the formatted business date
+  const url = `https://example.com/api/path/businessDate/${this.businessDate}`;
+  console.log('Service URL:', url);
+}
+
+/**
+ * Helper method to format date to 'DD-MMM-YYYY'
+ */
+private formatDate(date: Date): string {
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = date.toLocaleString('default', { month: 'short' }).toUpperCase(); // 'DEC' for December
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+Explanation:
+
+1. Event Handling:
+
+The OwlDateTimeInputDirective likely wraps the date value in a value property, so we check for event.value instead of directly working with the event itself.
+
+We check if event.value is a Date object or a string, and handle it accordingly.
+
+
+
+2. Date Parsing:
+
+If event.value is a string, we attempt to parse it into a Date object.
+
+
+
+3. Formatting:
+
+After extracting the valid Date object, we format it to DD-MMM-YYYY (e.g., 16-DEC-2024).
+
+
+
+4. Passing to URL:
+
+Finally, we pass the formatted businessDate to the URL.
+
+
+
+
+Expected Output:
+
+When the Date is Selected (e.g., Mon Dec 16 2024):
+
+Date Change Event: {value: Mon Dec 16 2024 00:00:00 GMT+0530 (India Standard Time), ...}
+Formatted Business Date: 16-DEC-2024
+Service URL: https://example.com/api/path/businessDate/16-DEC-2024
+
+If the Event Value is Invalid:
+
+Invalid date event type: [invalid value]
+
+
+
+---
+
+Summary:
+
+This updated solution handles the OwlDateTimeInputDirective correctly by checking event.value and extracting the Date object.
+
+The date is then formatted to DD-MMM-YYYY and passed to businessDate, which is used in the URL.
+
+
+Let me know if this works for you!
+
