@@ -86,3 +86,143 @@ This should work for your requirement of passing the businessDate directly to th
 
 Let me know if this works for you!
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+I understand now that you want to format the date as DD-MMM-YYYY (e.g., 16-DEC-2024) and pass it to businessDate so that it goes into the URL correctly, without changing the backend.
+
+Here’s the correct code that will format the date into DD-MMM-YYYY and pass it as businessDate:
+
+
+---
+
+Code to Format and Pass the Date:
+
+onDateChange(event: any): void {
+  console.log('Date Change Event:', event);
+
+  // Check if the event is a Date object
+  if (event instanceof Date) {
+    // Format the date to 'DD-MMM-YYYY'
+    this.businessDate = this.formatDate(event);
+    console.log('Formatted Business Date:', this.businessDate);
+  } else if (typeof event === 'string') {
+    // If it's a string, convert it to a Date object
+    const parsedDate = new Date(event);
+    if (!isNaN(parsedDate.getTime())) {
+      this.businessDate = this.formatDate(parsedDate); // Format the date as 'DD-MMM-YYYY'
+      console.log('Formatted Business Date from String:', this.businessDate);
+    } else {
+      console.error('Invalid date string:', event);
+      return;  // Exit early if invalid
+    }
+  } else {
+    console.error('Invalid date event type:', event);
+    return;  // Exit early if event is neither Date nor string
+  }
+
+  // Construct the URL with the formatted business date
+  const url = `https://example.com/api/path/businessDate/${this.businessDate}`;
+  console.log('Service URL:', url);
+}
+
+/**
+ * Helper method to format date to 'DD-MMM-YYYY'
+ */
+private formatDate(date: Date): string {
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = date.toLocaleString('default', { month: 'short' }).toUpperCase(); // Short month format
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+
+---
+
+Explanation:
+
+1. Formatting the Date:
+
+When a date is selected, the onDateChange method formats it using the formatDate function.
+
+The formatDate method converts the Date object into the format DD-MMM-YYYY (e.g., 16-DEC-2024).
+
+
+
+2. Checking the Event Type:
+
+The method checks if the event is a Date object or a string.
+
+If it's a string, it parses it into a Date object before formatting.
+
+
+
+3. Passing the Formatted Date:
+
+The businessDate is assigned the formatted value (e.g., 16-DEC-2024).
+
+The formatted date is then passed to the URL for the API call.
+
+
+
+
+Expected Console Output:
+
+1. When the User Selects the Date (e.g., Mon Dec 16 2024):
+
+Formatted Business Date: 16-DEC-2024
+
+Service URL: https://example.com/api/path/businessDate/16-DEC-2024
+
+
+
+2. When the Event is a String (e.g., "2024-12-16"):
+
+Formatted Business Date from String: 16-DEC-2024
+
+Service URL: https://example.com/api/path/businessDate/16-DEC-2024
+
+
+
+
+
+---
+
+Summary:
+
+The date is formatted into DD-MMM-YYYY using the formatDate helper method.
+
+The formatted date (e.g., 16-DEC-2024) is then assigned to businessDate.
+
+This businessDate is passed directly to the URL.
+
+
+This solution will allow you to pass the formatted date correctly, and you don't need to make backend changes.
+
+Let me know if this resolves your issue!
+
+
