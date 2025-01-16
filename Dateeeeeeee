@@ -1,0 +1,88 @@
+Yes, you can pass the date without formatting it to the URL and still map it to businessDate. Instead of converting the date to DD-MMM-YYYY format, you can directly pass the Date object or an ISO date string (e.g., yyyy-MM-dd) to the URL.
+
+Here’s how you can do it without formatting the date:
+
+Steps:
+
+1. Get the selected date (either a Date object or a string).
+
+
+2. Directly map this date to businessDate in its raw form (either the ISO format or the Date object itself).
+
+
+3. Pass the businessDate (without formatting) to your URL.
+
+
+
+Updated Code:
+
+onDateChange(event: any): void {
+  console.log('Date Change Event:', event);
+
+  if (event instanceof Date) {
+    // If event is a Date object, pass it as is
+    this.businessDate = event.toISOString().split('T')[0]; // 'yyyy-MM-dd' format
+    console.log('Business Date (ISO Format):', this.businessDate);
+  } else if (typeof event === 'string') {
+    // If event is a string, convert it to a Date object
+    const parsedDate = new Date(event);
+    if (!isNaN(parsedDate.getTime())) {
+      this.businessDate = parsedDate.toISOString().split('T')[0]; // 'yyyy-MM-dd' format
+      console.log('Business Date from String (ISO Format):', this.businessDate);
+    } else {
+      console.error('Invalid date string:', event);
+      return;  // Early exit if invalid date string
+    }
+  } else {
+    console.error('Invalid date event type:', event);
+    return;  // Early exit if event is neither Date nor string
+  }
+
+  // Construct the URL with the business date (ISO format)
+  const url = `https://example.com/api/path/businessDate/${this.businessDate}`;
+  console.log('Service URL:', url);
+}
+
+Explanation:
+
+The date is passed in the ISO format (yyyy-MM-dd).
+
+No date formatting is applied, meaning the businessDate is directly used as 2024-12-16 (ISO format).
+
+The event is either a Date object or a string, and we handle both cases.
+
+
+Example Output:
+
+1. When the User Selects the Date (e.g., Mon Dec 16 2024):
+
+Business Date: 2024-12-16
+
+Generated URL:
+
+https://example.com/api/path/businessDate/2024-12-16
+
+
+
+2. When the Event is a String (e.g., "2024-12-16"):
+
+Business Date: 2024-12-16
+
+Generated URL:
+
+https://example.com/api/path/businessDate/2024-12-16
+
+
+
+
+Summary:
+
+You don't need to format the date into a readable format (like DD-MMM-YYYY).
+
+The businessDate will be passed as the ISO format (yyyy-MM-dd) or directly as a Date object, depending on the input format.
+
+
+This should work for your requirement of passing the businessDate directly to the URL.
+
+Let me know if this works for you!
+
