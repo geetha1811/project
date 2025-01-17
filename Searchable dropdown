@@ -1,0 +1,197 @@
+To create a dropdown UI similar to the one in your shared image, here's the updated implementation for a searchable dropdown using ng-select. This solution aligns with the look and functionality shown in the image.
+
+
+---
+
+HTML Code
+
+<div class="form-row" style="padding: 10px;">
+  <div class="col-sm-3">
+    <div class="form-group">
+      <span class="span-text">Rc/Crc Categories</span>
+      <ng-select
+        [items]="dropdownOptions"
+        bindLabel="name"
+        bindValue="id"
+        [(ngModel)]="selectedOption"
+        [searchable]="true"
+        placeholder="Search By Source..."
+        [clearable]="true"
+        [dropdownPosition]="'bottom'"
+        [hideSelected]="true"
+        (change)="onDropdownChange($event)"
+        class="custom-ng-select">
+      </ng-select>
+    </div>
+  </div>
+</div>
+
+
+---
+
+CSS Styling
+
+To make the dropdown look similar to your reference image:
+
+.custom-ng-select {
+  width: 100%;
+  border-radius: 5px;
+  font-size: 14px;
+  height: 38px;
+  border: 1px solid #ced4da;
+}
+
+.ng-select .ng-select-container {
+  border-radius: 5px;
+  height: 38px;
+  font-size: 14px;
+  line-height: 24px;
+}
+
+.ng-select .ng-clear {
+  font-size: 14px;
+}
+
+.ng-select.ng-select-single .ng-select-container {
+  align-items: center;
+  padding: 4px 10px;
+}
+
+
+---
+
+Component File
+
+import { Component, OnInit } from '@angular/core';
+import { DropdownService } from './dropdown.service';
+
+@Component({
+  selector: 'app-dropdown',
+  templateUrl: './dropdown.component.html',
+  styleUrls: ['./dropdown.component.css'],
+})
+export class DropdownComponent implements OnInit {
+  dropdownOptions: any[] = []; // Dropdown data
+  selectedOption: string | null = null; // Selected option ID
+
+  constructor(private dropdownService: DropdownService) {}
+
+  ngOnInit(): void {
+    this.loadDropdownOptions();
+  }
+
+  // Fetch options from backend
+  loadDropdownOptions(): void {
+    this.dropdownService.getDropdownOptions().subscribe(
+      (data) => {
+        this.dropdownOptions = data;
+        console.log('Dropdown options loaded:', this.dropdownOptions);
+      },
+      (error) => {
+        console.error('Error loading dropdown options:', error);
+      }
+    );
+  }
+
+  // Handle dropdown change
+  onDropdownChange(selectedId: string): void {
+    console.log('Selected Option ID:', selectedId);
+
+    // Use selectedId for additional actions like URL mapping
+    if (selectedId) {
+      console.log(`Selected option with ID: ${selectedId}`);
+    } else {
+      console.log('No option selected');
+    }
+  }
+}
+
+
+---
+
+Service File
+
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+
+@Injectable({
+  providedIn: 'root',
+})
+export class DropdownService {
+  private apiUrl = 'https://example.com/api/dropdown-data'; // Replace with your backend API
+
+  constructor(private http: HttpClient) {}
+
+  getDropdownOptions(): Observable<any[]> {
+    return this.http.get<any[]>(this.apiUrl);
+  }
+}
+
+
+---
+
+Expected Behavior
+
+1. Searchable Dropdown:
+
+The dropdown allows typing to filter options dynamically.
+
+Placeholder text (Search By Source...) is shown by default.
+
+Dropdown positions itself below the field with a clean UI.
+
+
+
+2. Dynamic Data:
+
+Data is fetched from the backend dynamically.
+
+The dropdown binds name to display and id as the value.
+
+
+
+3. Clearable and Selectable:
+
+Users can clear the selection using the clear icon.
+
+When a selection is made, it triggers the onDropdownChange method.
+
+
+
+4. UI Similarity:
+
+The dropdown matches the design and behavior in your reference image, including search functionality.
+
+
+
+
+
+---
+
+Dependencies
+
+Make sure ng-select is installed. If not, run:
+
+npm install @ng-select/ng-select
+
+Then, import it in your module:
+
+import { NgSelectModule } from '@ng-select/ng-select';
+import { FormsModule } from '@angular/forms';
+
+@NgModule({
+  declarations: [...],
+  imports: [
+    NgSelectModule,
+    FormsModule,
+    ...
+  ],
+})
+export class AppModule {}
+
+
+---
+
+Let me know if this meets your requirements!
+
