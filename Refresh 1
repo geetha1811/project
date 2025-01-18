@@ -1,0 +1,220 @@
+Let’s address both of your issues step by step and provide the correct solution:
+
+
+---
+
+Issue 1: ngOnChanges Not Triggering When Basic Code Changes
+
+Reason: Angular's ngOnChanges is triggered only if the @Input() value changes, but if the value is the same reference or re-assigned the same value, it won't trigger.
+
+
+---
+
+Solution for Issue 1: Explicitly Detect Changes
+
+To fix this, ensure the parent component passes a new reference for the basicId or breakdownViewCode whenever it changes.
+
+Updated ngOnChanges Implementation:
+
+ngOnChanges(changes: SimpleChanges): void {
+  console.log('Inside ngOnChanges:', changes);
+
+  if (changes['breakdownViewCode']) {
+    const previousValue = changes['breakdownViewCode'].previousValue;
+    const currentValue = changes['breakdownViewCode'].currentValue;
+
+    console.log('Previous BreakdownViewCode:', previousValue, 'Current:', currentValue);
+
+    // Only trigger reset and data fetch if the code actually changes
+    if (currentValue && currentValue !== previousValue) {
+      console.log('BreakdownViewCode has changed. Resetting data...');
+      this.resetGridOnChange();
+      this.getDropdownOptions();
+    }
+  }
+}
+
+
+---
+
+Issue 2: Data Resets When Navigating Between Components
+
+Reason: Angular destroys and reinitializes the component when navigating to a new route/component. This causes the component state to reset.
+
+
+---
+
+Solution for Issue 2: Preserve State Across Component Reloads
+
+To ensure data persists when navigating between components:
+
+1. Use a Service for State Management Store the data (breakdownData, rowData, columnDefs, etc.) in a shared service, so it persists across component reloads.
+
+
+2. Modify Component to Check for Existing Data
+If breakdownData exists in the service, load it instead of resetting.
+
+
+
+
+---
+
+Final Code Implementation
+
+Breakdown Component
+
+import { Component, Input, OnChanges, SimpleChanges, OnInit } from '@angular/core';
+import { BreakdownService } from './breakdown.service';
+
+@Component({
+  selector: 'app-breakdown',
+  templateUrl: './breakdown.component.html',
+  styleUrls: ['./breakdown.component.scss']
+})
+export class BreakdownComponent implements OnInit, OnChanges {
+  @Input() breakdownViewCode: string | undefined;
+  @Input() basicId: string | undefined;
+
+  rowData: any[] = [];
+  columnDefs: any[] = [];
+  dropdownOptions: any[] = [];
+  selectedOption: any = null;
+  selectedDate: string | null = null;
+
+  constructor(private breakdownService: BreakdownService) {}
+
+  ngOnInit(): void {
+    // Check if data is already stored in the service
+    if (this.breakdownService.breakdownData.length > 0) {
+      this.rowData = this.breakdownService.breakdownData;
+      this.columnDefs = this.breakdownService.columnDefs;
+      console.log('Restored data from service.');
+    }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    console.log('Inside ngOnChanges:', changes);
+
+    if (changes['breakdownViewCode']) {
+      const previousValue = changes['breakdownViewCode'].previousValue;
+      const currentValue = changes['breakdownViewCode'].currentValue;
+
+      console.log('Previous BreakdownViewCode:', previousValue, 'Current:', currentValue);
+
+      if (currentValue && currentValue !== previousValue) {
+        console.log('BreakdownViewCode has changed. Resetting data...');
+        this.resetGridOnChange();
+        this.getDropdownOptions();
+      }
+    }
+  }
+
+  onRun(): void {
+    if (this.basicId && this.breakdownViewCode && this.selectedOption && this.selectedDate) {
+      this.breakdownService.getBreakdownResult(
+        this.breakdownViewCode,
+        this.selectedDate,
+        this.selectedOption.id
+      ).subscribe(response => {
+        if (response.outStatus === 'SUCCESS' && response.headerSet && response.resultSet) {
+          this.columnDefs = response.headerSet.map((header: string) => ({
+            headerName: header,
+            field: header,
+            sortable: true,
+            filter: true,
+            resizable: true,
+          }));
+
+          this.rowData = response.resultSet.map((row: any[]) => {
+            const rowDataObj: any = {};
+            response.headerSet.forEach((header: string, index: number) => {
+              rowDataObj[header] = row[index];
+            });
+            return rowDataObj;
+          });
+
+          // Save data to the service for persistence
+          this.breakdownService.breakdownData = this.rowData;
+          this.breakdownService.columnDefs = this.columnDefs;
+
+          console.log('Data fetched and stored in service.');
+        } else {
+          console.error('Invalid response format or outStatus is not SUCCESS.');
+        }
+      });
+    }
+  }
+
+  resetGridOnChange(): void {
+    console.log('Resetting grid...');
+    this.dropdownOptions = [];
+    this.selectedOption = null;
+    this.selectedDate = null;
+    this.rowData = [];
+    this.columnDefs = [];
+
+    // Clear data in service as well
+    this.breakdownService.breakdownData = [];
+    this.breakdownService.columnDefs = [];
+
+    console.log('Reset done.');
+  }
+
+  getDropdownOptions(): void {
+    this.breakdownService.getBreakdown().subscribe(data => {
+      console.log('Dropdown options fetched:', data);
+      this.dropdownOptions = data as any[];
+    });
+  }
+}
+
+
+---
+
+Breakdown Service
+
+import { Injectable } from '@angular/core';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class BreakdownService {
+  breakdownData: any[] = [];
+  columnDefs: any[] = [];
+
+  getBreakdown() {
+    // Your API call to fetch dropdown options
+  }
+
+  getBreakdownResult(breakdownViewCode: string, date: string, optionId: string) {
+    // Your API call to fetch breakdown results
+  }
+}
+
+
+---
+
+Expected Behavior
+
+1. With Same Basic Code:
+
+If you navigate to another component and come back, the ngOnInit will check if there’s existing data in the BreakdownService and restore it.
+
+The grid and dropdown will not reset.
+
+
+
+2. With Different Basic Code:
+
+The ngOnChanges will detect a change in breakdownViewCode and call resetGridOnChange to clear the grid and dropdown.
+
+New data will be fetched for the selected breakdownViewCode.
+
+
+
+
+
+---
+
+Let me know if this resolves your issue!
+
