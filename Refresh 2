@@ -1,0 +1,215 @@
+Here's the updated TypeScript code for your breakdown component that incorporates your requests:
+
+Requested Changes:
+
+1. Preserve data when navigating away and returning to the breakdown component with the same basic code.
+
+
+2. Refresh all breakdown data (table data, dropdown options, etc.) when selecting a new basic code while staying in the breakdown component.
+
+
+
+
+---
+
+Complete Code with Requested Modifications
+
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
+import { FormBuilder, FormGroup } from '@angular/forms';
+import { ToastrService } from 'ngx-toastr';
+import { SpinnerService } from './spinner.service';
+import { BreakdownService } from './breakdown.service';
+
+@Component({
+  selector: 'app-breakdown',
+  templateUrl: './breakdown.component.html',
+  styleUrls: ['./breakdown.component.css'],
+})
+export class BreakdownComponent implements OnInit, OnChanges {
+  @Input() basicCode: string = ''; // Input property for basic code
+  dropdownOptions: any[] = []; // Dropdown options
+  selectedDescription: string = '';
+  breakdownData: any[] = []; // Table data
+  columnDefs: any[] = []; // Table headers
+  rowData: any[] = []; // Table rows
+  breakdownForm!: FormGroup; // FormGroup for parameters
+  savedState: { [key: string]: any } = {}; // Store data per basic code
+
+  constructor(
+    private fb: FormBuilder,
+    private toastr: ToastrService,
+    private spinner: SpinnerService,
+    private breakdownService: BreakdownService
+  ) {}
+
+  ngOnInit(): void {
+    this.initializeForm(); // Initialize form
+    this.fetchDropdownOptions(); // Fetch dropdown options initially
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['basicCode'] && changes['basicCode'].currentValue) {
+      const newBasicCode = changes['basicCode'].currentValue;
+      const oldBasicCode = changes['basicCode'].previousValue;
+
+      if (newBasicCode !== oldBasicCode) {
+        console.log(`Basic code changed from ${oldBasicCode} to ${newBasicCode}`);
+        this.resetComponent(); // Reset all data for a new basic code
+      } else {
+        console.log('Same basic code, restoring previous state...');
+        this.restoreState(newBasicCode); // Restore data for the same basic code
+      }
+    }
+  }
+
+  initializeForm(): void {
+    this.breakdownForm = this.fb.group({
+      quickSearch: [''],
+      sourceDescription: [''],
+      chFromDate: [''],
+      breakdownFilter: [''],
+      breakdownPageSize: ['10'],
+    });
+  }
+
+  fetchDropdownOptions(): void {
+    this.spinner.show();
+    this.breakdownService.getDropdownOptions().subscribe(
+      (data: any) => {
+        this.dropdownOptions = data;
+        console.log('Dropdown options fetched:', this.dropdownOptions);
+        this.spinner.hide();
+      },
+      (error) => {
+        this.spinner.hide();
+        this.toastr.error('Failed to fetch dropdown options');
+      }
+    );
+  }
+
+  onDropdownChange(selectedId: string): void {
+    console.log('Selected ID:', selectedId);
+    const selectedOption = this.dropdownOptions.find((option) => option.id === selectedId);
+    if (selectedOption) {
+      this.selectedDescription = selectedOption.description;
+      console.log('Selected Option:', selectedOption);
+    } else {
+      console.log('No option found for the selected ID');
+      this.selectedDescription = '';
+    }
+  }
+
+  onRun(): void {
+    if (this.basicCode) {
+      const businessDate = this.breakdownForm.value.chFromDate;
+      const formattedDate = this.formatDate(businessDate); // Format date if required
+      const dropdownId = this.breakdownForm.value.sourceDescription;
+
+      this.spinner.show();
+      this.breakdownService
+        .getBreakdownResult(this.basicCode, formattedDate, dropdownId)
+        .subscribe(
+          (response: any) => {
+            if (response.outStatus === 'SUCCESS') {
+              this.columnDefs = response.headerSet.map((header: string) => ({
+                headerName: header,
+                field: header,
+                sortable: true,
+                filter: true,
+                resizable: true,
+              }));
+              this.rowData = response.resultSet.map((row: any[]) => {
+                const rowDataObj: any = {};
+                response.headerSet.forEach((header: string, index: number) => {
+                  rowDataObj[header] = row[index];
+                });
+                return rowDataObj;
+              });
+              this.saveState(this.basicCode); // Save state after successful data fetch
+            } else {
+              this.toastr.error('Failed to fetch results');
+            }
+            this.spinner.hide();
+          },
+          (error) => {
+            this.spinner.hide();
+            this.toastr.error('Failed to fetch breakdown results');
+          }
+        );
+    }
+  }
+
+  resetComponent(): void {
+    // Clear all data when switching to a new basic code
+    this.dropdownOptions = [];
+    this.selectedDescription = '';
+    this.breakdownData = [];
+    this.rowData = [];
+    this.columnDefs = [];
+    this.fetchDropdownOptions(); // Fetch new dropdown options
+  }
+
+  restoreState(basicCode: string): void {
+    // Restore data for the same basic code
+    const state = this.savedState[basicCode];
+    if (state) {
+      this.dropdownOptions = state.dropdownOptions;
+      this.selectedDescription = state.selectedDescription;
+      this.rowData = state.rowData;
+      this.columnDefs = state.columnDefs;
+    }
+  }
+
+  saveState(basicCode: string): void {
+    // Save the current state for the basic code
+    this.savedState[basicCode] = {
+      dropdownOptions: this.dropdownOptions,
+      selectedDescription: this.selectedDescription,
+      rowData: this.rowData,
+      columnDefs: this.columnDefs,
+    };
+    console.log('State saved for basicCode:', basicCode);
+  }
+
+  formatDate(date: Date): string {
+    // Format date to the required format (e.g., DD-MMM-YYYY)
+    if (!date) return '';
+    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: '2-digit' };
+    return new Intl.DateTimeFormat('en-US', options).format(new Date(date)).toUpperCase();
+  }
+}
+
+
+---
+
+Explanation of Changes:
+
+1. resetComponent: Clears all data when switching to a new basicCode. It also refreshes the dropdown options.
+
+
+2. saveState and restoreState:
+
+Save the state (dropdown, table data, etc.) when data is fetched for a specific basicCode.
+
+Restore the saved state when navigating back with the same basicCode.
+
+
+
+3. Data Persistence:
+
+For the same basicCode, data is preserved when switching between components.
+
+For a new basicCode, all data is reset and refreshed.
+
+
+
+
+Expected Output:
+
+1. Same basicCode: Data remains unchanged even if you navigate away and return.
+
+
+2. New basicCode: Dropdown options and table data are reset and refreshed completely.
+
+
+
