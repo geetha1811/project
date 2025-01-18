@@ -1,0 +1,172 @@
+Thank you for the clarification! I now understand the scenario more clearly. Based on your explanation, the key requirements are:
+
+1. When you select a basic code and open the breakdown component, after providing the parameters and clicking "Run," data is populated in the table.
+
+
+2. When you leave the breakdown component (e.g., go to another component) and then come back, the data should remain the same as long as the same basic code is used.
+
+
+3. When you select a new basic code within the breakdown component, the data should be refreshed and repopulated accordingly.
+
+
+
+Solution Outline
+
+To meet these requirements, we need to handle the following:
+
+1. Store the selected basicId and breakdown data in the component so that it persists when you leave and return to the breakdown component.
+
+
+2. Use a condition to detect when a new basicId is selected, and if it is different from the previous one, trigger a refresh (i.e., reset the data).
+
+
+3. Ensure that when navigating between components, the data is only reset when a new basicId is selected.
+
+
+
+Approach
+
+We will utilize local state management for persisting the basicId and breakdown data within the component. This ensures that the breakdown data remains intact when returning to the breakdown component with the same basicId. When switching to a new basicId, the breakdown data will be reset.
+
+Updated Code:
+
+export class BreakdownComponent implements OnInit, OnChanges {
+  // Variables to store breakdown data and state
+  basicId: string | undefined;
+  previousBasicId: string | undefined;
+  columnDefs: any[] = [];
+  rowData: any[] = [];
+  dropdownOptions: any[] = [];
+  selectedDescription: string | undefined;
+  selectedDate: string | undefined;
+
+  constructor(private breakdownService: BreakdownService, private toastr: ToastrService, private spinner: NgxSpinnerService) {}
+
+  ngOnInit(): void {
+    // Initialize or fetch initial data if needed
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['basicId'] && this.basicId !== this.previousBasicId) {
+      this.previousBasicId = this.basicId; // Update the previousBasicId to track changes
+      this.resetGridOnChange(); // Reset data if new basicId selected
+      this.getDropdownOptions(); // Refresh dropdown options if needed
+    }
+  }
+
+  // Method called when "Run" button is clicked
+  onRun(): void {
+    if (this.basicId !== undefined) {
+      // Fetch breakdown data when run is clicked
+      this.fetchBreakdownData(this.basicId, this.selectedDescription, this.selectedDate);
+    }
+  }
+
+  // Method to fetch breakdown data from the service
+  fetchBreakdownData(basicId: string, selectedDescription: string | undefined, selectedDate: string | undefined): void {
+    this.breakdownService.getBreakdownResult(basicId, selectedDescription, selectedDate).subscribe({
+      next: (response) => {
+        if (response.outStatus === 'SUCCESS' && Array.isArray(response.headerSet) && Array.isArray(response.resultSet)) {
+          this.columnDefs = response.headerSet.map((header: string) => ({
+            headerName: header.replace(searchValue: '', replaceValue: ''),
+            field: header,
+            sortable: true,
+            filter: true,
+            resizable: true
+          }));
+          this.rowData = response.resultSet.map((row: any[]) => {
+            const rowDataObj: any = {};
+            response.headerSet.forEach((header: string, index: number) => {
+              rowDataObj[header] = row[index];
+            });
+            return rowDataObj;
+          });
+        } else {
+          this.toastr.errorToastr('Invalid response format or result fetch failed', 'Breakdown');
+        }
+        this.spinner.hide();
+      },
+      error: (error) => {
+        this.spinner.hide();
+        this.toastr.errorToastr('Error fetching breakdown data', 'Breakdown');
+      }
+    });
+  }
+
+  // Method to get dropdown options
+  getDropdownOptions(): void {
+    this.breakdownService.getBreakdown().subscribe({
+      next: (data) => {
+        this.dropdownOptions = data as any[];
+      },
+      error: (error) => {
+        this.toastr.errorToastr('Dropdown details fetch failed', 'Breakdown');
+      }
+    });
+  }
+
+  // Method to reset breakdown data
+  resetGridOnChange(): void {
+    this.columnDefs = [];
+    this.rowData = [];
+    this.selectedDescription = undefined;
+    this.selectedDate = undefined;
+    this.dropdownOptions = [];
+    console.log('Data reset completed.');
+  }
+}
+
+Explanation:
+
+1. Track basicId changes:
+
+We compare the current basicId with previousBasicId in ngOnChanges. If the basicId changes (i.e., a new basic code is selected), the resetGridOnChange() function is called to reset the breakdown data and dropdown options.
+
+
+
+2. Persist data when switching tabs:
+
+As long as the basicId does not change, the data remains intact. When switching back to the breakdown component with the same basicId, the previously fetched data will persist.
+
+
+
+3. Refresh breakdown data on "Run":
+
+When you click "Run", the onRun() method will be triggered, which calls the fetchBreakdownData() method to fetch the breakdown data for the selected basicId, dropdown selection, and selected date.
+
+
+
+4. Reset breakdown data:
+
+When switching to a new basicId (detected in ngOnChanges), the resetGridOnChange() method clears all the previous data, allowing new data to be loaded for the new basicId.
+
+
+
+
+Expected Output:
+
+1. Same basic code:
+
+If you navigate away from the breakdown component and come back with the same basicId, the data will remain the same as it was last populated.
+
+
+
+2. New basic code:
+
+If you select a new basicId, the data will be refreshed and the breakdown data will be reset.
+
+
+
+3. After clicking "Run":
+
+The data will be populated with the selected breakdown parameters (dropdown option and selected date).
+
+
+
+
+Summary:
+
+This approach addresses your requirements by ensuring that the data remains persistent for the same basicId, and only resets when a new basicId is selected. The breakdown data will be correctly populated when you click "Run" and will not be unnecessarily reset when returning to the component with the same basicId.
+
+Let me know if this works or if you need further adjustments!
+
