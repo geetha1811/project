@@ -1,0 +1,153 @@
+Got it! Here's the simplified approach tailored to match your description and style, using localStorage with the breakdown component.
+
+
+---
+
+Updated constructor with getBreakdownData
+
+constructor(
+  public fb: FormBuilder,
+  public breakdownService: BreakdownService,
+  public spinner: Ng4LoadingSpinnerService,
+  public router: Router
+) {
+  if (localStorage.getItem('breakdownDetails')) {
+    this.getBreakdownData();
+  }
+}
+
+
+---
+
+Add getBreakdownData Method
+
+getBreakdownData(): void {
+  console.log('Inside getBreakdownData-->');
+  this.spinner.show();
+
+  this.breakdownService.getDropdownOptions(this.basicCode).subscribe(
+    (dropdownData) => {
+      console.log('Dropdown data loaded:', dropdownData);
+
+      // Restore dropdown options and category
+      this.dropdownOptions = dropdownData || [];
+      const savedDetails = JSON.parse(localStorage.getItem('breakdownDetails') || '{}');
+      
+      // Restore form and table data
+      this.category = savedDetails.category || 'Search By Category........';
+      this.breakdownForm.patchValue({
+        quickSearch: savedDetails.quickSearch || '',
+        sourceDescription: savedDetails.sourceDescription || '',
+        chFromDate: savedDetails.chFromDate || '',
+      });
+
+      this.rowData = savedDetails.rowData || [];
+      this.columnDefs = savedDetails.columnDefs || [];
+
+      this.spinner.hide();
+    },
+    (error) => {
+      console.error('Error loading dropdown data:', error);
+      this.spinner.hide();
+    }
+  );
+}
+
+
+---
+
+Modify onRun Method for Saving Data
+
+onRun(): void {
+  console.log('onRun triggered...');
+  const requestData = {
+    basicCode: this.basicCode,
+    businessDate: this.breakdownForm.get('chFromDate')?.value || '',
+    selectedOption: this.category || '',
+  };
+
+  this.breakdownService.getResultSet(requestData).subscribe(
+    (response) => {
+      console.log('Response received:', response);
+
+      // Update the table data
+      this.rowData = response.data || [];
+      this.columnDefs = response.columnDefs || [];
+
+      // Save the current state in localStorage
+      this.saveToLocalStorage();
+    },
+    (error) => {
+      console.error('Error fetching result set:', error);
+    }
+  );
+}
+
+
+---
+
+Add saveToLocalStorage Method
+
+saveToLocalStorage(): void {
+  const dataToSave = {
+    category: this.category,
+    quickSearch: this.breakdownForm.get('quickSearch')?.value || '',
+    sourceDescription: this.breakdownForm.get('sourceDescription')?.value || '',
+    chFromDate: this.breakdownForm.get('chFromDate')?.value || '',
+    rowData: this.rowData,
+    columnDefs: this.columnDefs,
+  };
+
+  localStorage.setItem('breakdownDetails', JSON.stringify(dataToSave));
+  console.log('Breakdown data saved to localStorage:', dataToSave);
+}
+
+
+---
+
+Add Reset Logic in ngOnChanges
+
+ngOnChanges(changes: SimpleChanges): void {
+  if (changes['basicCode'] && changes['basicCode'].currentValue) {
+    console.log('Basic code changed:', changes['basicCode'].currentValue);
+    localStorage.removeItem('breakdownDetails'); // Clear previous data
+    this.resetBreakdown(); // Reset the component
+  }
+}
+
+
+---
+
+Reset Method
+
+resetBreakdown(): void {
+  console.log('Resetting breakdown component...');
+  this.dropdownOptions = [];
+  this.rowData = [];
+  this.columnDefs = [];
+  this.category = 'Search By Category........';
+  this.breakdownForm.patchValue({
+    quickSearch: '',
+    sourceDescription: '',
+    chFromDate: '',
+  });
+  console.log('Reset complete.');
+}
+
+
+---
+
+Summary of Behavior
+
+1. Retain Data: Data is saved to localStorage after the user clicks "Run".
+
+
+2. Restore Data: On component reload or tab switch, getBreakdownData restores the saved data from localStorage.
+
+
+3. Basic Code Change: When the basicCode changes, ngOnChanges clears saved data and resets the component.
+
+
+
+This implementation aligns with the structure your sir used and achieves the required functionality. Let me know if you need further clarifications!
+
