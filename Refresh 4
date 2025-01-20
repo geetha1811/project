@@ -1,9 +1,11 @@
-Got it! Here's the simplified approach tailored to match your description and style, using localStorage with the breakdown component.
+You're correct; if getDropdownOptions is already subscribing to fetch dropdown data, you don't need to re-subscribe in getBreakdownData. Instead, you can simplify the code to only restore the saved state in getBreakdownData without duplicating the dropdown data subscription.
+
+Here’s the updated approach:
 
 
 ---
 
-Updated constructor with getBreakdownData
+Updated constructor
 
 constructor(
   public fb: FormBuilder,
@@ -19,44 +21,34 @@ constructor(
 
 ---
 
-Add getBreakdownData Method
+getBreakdownData Without Re-Subscribing to Dropdown
 
 getBreakdownData(): void {
-  console.log('Inside getBreakdownData-->');
-  this.spinner.show();
+  console.log('Restoring data from localStorage...');
 
-  this.breakdownService.getDropdownOptions(this.basicCode).subscribe(
-    (dropdownData) => {
-      console.log('Dropdown data loaded:', dropdownData);
+  const savedDetails = JSON.parse(localStorage.getItem('breakdownDetails') || '{}');
 
-      // Restore dropdown options and category
-      this.dropdownOptions = dropdownData || [];
-      const savedDetails = JSON.parse(localStorage.getItem('breakdownDetails') || '{}');
-      
-      // Restore form and table data
-      this.category = savedDetails.category || 'Search By Category........';
-      this.breakdownForm.patchValue({
-        quickSearch: savedDetails.quickSearch || '',
-        sourceDescription: savedDetails.sourceDescription || '',
-        chFromDate: savedDetails.chFromDate || '',
-      });
+  // Restore dropdown options (assume already fetched via getDropdownOptions)
+  this.dropdownOptions = savedDetails.dropdownOptions || [];
 
-      this.rowData = savedDetails.rowData || [];
-      this.columnDefs = savedDetails.columnDefs || [];
+  // Restore form fields and table data
+  this.category = savedDetails.category || 'Search By Category........';
+  this.breakdownForm.patchValue({
+    quickSearch: savedDetails.quickSearch || '',
+    sourceDescription: savedDetails.sourceDescription || '',
+    chFromDate: savedDetails.chFromDate || '',
+  });
 
-      this.spinner.hide();
-    },
-    (error) => {
-      console.error('Error loading dropdown data:', error);
-      this.spinner.hide();
-    }
-  );
+  this.rowData = savedDetails.rowData || [];
+  this.columnDefs = savedDetails.columnDefs || [];
+
+  console.log('Data restored successfully:', savedDetails);
 }
 
 
 ---
 
-Modify onRun Method for Saving Data
+Modify onRun to Save All Relevant Data
 
 onRun(): void {
   console.log('onRun triggered...');
@@ -86,7 +78,7 @@ onRun(): void {
 
 ---
 
-Add saveToLocalStorage Method
+Simplified saveToLocalStorage
 
 saveToLocalStorage(): void {
   const dataToSave = {
@@ -94,6 +86,7 @@ saveToLocalStorage(): void {
     quickSearch: this.breakdownForm.get('quickSearch')?.value || '',
     sourceDescription: this.breakdownForm.get('sourceDescription')?.value || '',
     chFromDate: this.breakdownForm.get('chFromDate')?.value || '',
+    dropdownOptions: this.dropdownOptions, // Save fetched dropdown options
     rowData: this.rowData,
     columnDefs: this.columnDefs,
   };
@@ -105,49 +98,36 @@ saveToLocalStorage(): void {
 
 ---
 
-Add Reset Logic in ngOnChanges
+Reset Behavior in ngOnChanges
 
 ngOnChanges(changes: SimpleChanges): void {
   if (changes['basicCode'] && changes['basicCode'].currentValue) {
     console.log('Basic code changed:', changes['basicCode'].currentValue);
-    localStorage.removeItem('breakdownDetails'); // Clear previous data
-    this.resetBreakdown(); // Reset the component
+
+    // Clear previous data and reset the component
+    localStorage.removeItem('breakdownDetails');
+    this.resetBreakdown();
+    this.getDropdownOptions(); // Re-fetch dropdown options for new basic code
   }
 }
 
 
 ---
 
-Reset Method
+Key Points
 
-resetBreakdown(): void {
-  console.log('Resetting breakdown component...');
-  this.dropdownOptions = [];
-  this.rowData = [];
-  this.columnDefs = [];
-  this.category = 'Search By Category........';
-  this.breakdownForm.patchValue({
-    quickSearch: '',
-    sourceDescription: '',
-    chFromDate: '',
-  });
-  console.log('Reset complete.');
-}
+1. getDropdownOptions: Handles fetching dropdown options and updates this.dropdownOptions.
 
 
----
-
-Summary of Behavior
-
-1. Retain Data: Data is saved to localStorage after the user clicks "Run".
+2. getBreakdownData: Only restores saved state from localStorage without re-subscribing to dropdown options.
 
 
-2. Restore Data: On component reload or tab switch, getBreakdownData restores the saved data from localStorage.
+3. Reset Behavior: The dropdown is reset and re-fetched only when the basicCode changes.
 
 
-3. Basic Code Change: When the basicCode changes, ngOnChanges clears saved data and resets the component.
+4. Retain Data: Saved data persists across tabs for the same basicCode.
 
 
 
-This implementation aligns with the structure your sir used and achieves the required functionality. Let me know if you need further clarifications!
+This approach avoids redundant API calls while ensuring data restoration and proper reset behavior. Let me know if you need further clarifications!
 
