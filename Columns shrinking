@@ -1,0 +1,122 @@
+Here is the complete and updated code that ensures the grid retains its proper column sizes without shrinking when switching tabs or resizing the window. The output will look like the first picture, with neatly formatted columns that do not shrink.
+
+Complete Code
+
+onGridReady(params): void {
+  console.log('onGridReady triggered...');
+  this.gridApi = params.api;
+  this.gridColumnApi = params.columnApi;
+
+  // Set the flag to indicate the grid is ready
+  this.gridReady = true;
+
+  // Auto-size all columns initially
+  if (this.gridColumnApi) {
+    this.gridColumnApi.autoSizeColumns(
+      this.gridColumnApi.getAllColumns().map((col) => col.colId),
+      false
+    );
+  }
+
+  // Add an event listener for window resizing to adjust columns dynamically
+  window.addEventListener('resize', () => {
+    setTimeout(() => {
+      if (this.gridColumnApi) {
+        this.gridColumnApi.autoSizeColumns(
+          this.gridColumnApi.getAllColumns().map((col) => col.colId),
+          false
+        );
+      }
+    }, 200); // Adding a delay to smooth out resizing
+  });
+
+  // Ensure columns are resized properly when the tab becomes active
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && this.gridColumnApi) {
+      this.gridColumnApi.autoSizeColumns(
+        this.gridColumnApi.getAllColumns().map((col) => col.colId),
+        false
+      );
+    }
+  });
+
+  // Call breakdownPageChanged now that the grid is ready
+  this.breakdownPageChanged();
+}
+
+
+---
+
+Expected Behavior (Output)
+
+1. When the grid is initially loaded:
+
+The columns will be auto-sized based on their content, just as shown in the first image.
+
+No shrinking or excessive padding will appear.
+
+
+
+2. When switching tabs:
+
+The columns will resize automatically when the tab becomes visible again.
+
+This ensures the grid looks the same as in the first picture.
+
+
+
+3. When resizing the window:
+
+The columns will adjust dynamically to maintain their proper sizes.
+
+
+
+4. No Shrinking or Overlapping:
+
+The grid columns will not shrink or appear squeezed, ensuring the user experience is consistent.
+
+
+
+
+
+---
+
+Explanation of Key Features in the Code
+
+1. Initial Auto-Sizing of Columns:
+
+autoSizeColumns is called on onGridReady to size the columns based on their content when the grid loads.
+
+
+
+2. Dynamic Resizing:
+
+The resize event ensures that column widths adjust dynamically when the window is resized.
+
+
+
+3. Tab Visibility Handling:
+
+The visibilitychange event ensures the grid resizes properly when the user switches back to the tab where the grid is displayed.
+
+
+
+4. Delay for Performance:
+
+A slight delay (200ms) is added for resizing to avoid unnecessary and frequent updates.
+
+
+
+
+
+---
+
+Final Output:
+
+The grid will consistently look like the one in the first picture, with clean, properly spaced columns.
+
+Switching tabs, resizing windows, or interacting with the grid will not cause any shrinking issues.
+
+
+Let me know if you need further clarification or additional enhancements!
+
