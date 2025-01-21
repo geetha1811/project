@@ -1,6 +1,38 @@
-Here is the complete and updated code that ensures the grid retains its proper column sizes without shrinking when switching tabs or resizing the window. The output will look like the first picture, with neatly formatted columns that do not shrink.
+If you're encountering an error with the ?. optional chaining operator, it likely means either:
 
-Complete Code
+1. Your TypeScript version doesn't support it (pre-3.7).
+
+
+2. this.breakdownGrid or its properties are undefined/null, and optional chaining isn't supported.
+
+
+
+To resolve this, you can replace ?. with explicit null/undefined checks. Here's the corrected code:
+
+
+---
+
+Updated Code Without ?.
+
+Replace this line:
+
+this.breakdownGrid?.columnDefs.map((col) => col.field);
+
+With an explicit null/undefined check:
+
+if (this.breakdownGrid && this.breakdownGrid.columnDefs) {
+  this.gridColumnApi.autoSizeColumns(
+    this.breakdownGrid.columnDefs.map((col) => col.field),
+    false
+  );
+}
+
+
+---
+
+Full Updated Code:
+
+Here's the updated onGridReady function that doesn't use ?.:
 
 onGridReady(params): void {
   console.log('onGridReady triggered...');
@@ -10,31 +42,35 @@ onGridReady(params): void {
   // Set the flag to indicate the grid is ready
   this.gridReady = true;
 
-  // Auto-size all columns initially
-  if (this.gridColumnApi) {
-    this.gridColumnApi.autoSizeColumns(
-      this.gridColumnApi.getAllColumns().map((col) => col.colId),
-      false
-    );
+  // Ensure auto-sizing of columns after the grid is rendered
+  if (this.breakdownGrid && this.breakdownGrid.columnDefs) {
+    setTimeout(() => {
+      this.gridColumnApi.autoSizeColumns(
+        this.breakdownGrid.columnDefs.map((col) => col.field),
+        false
+      );
+    }, 0);
   }
 
-  // Add an event listener for window resizing to adjust columns dynamically
+  // Add a listener for window resizing to adjust column sizes dynamically
   window.addEventListener('resize', () => {
-    setTimeout(() => {
-      if (this.gridColumnApi) {
-        this.gridColumnApi.autoSizeColumns(
-          this.gridColumnApi.getAllColumns().map((col) => col.colId),
-          false
-        );
-      }
-    }, 200); // Adding a delay to smooth out resizing
+    if (this.breakdownGrid && this.breakdownGrid.columnDefs) {
+      this.gridColumnApi.autoSizeColumns(
+        this.breakdownGrid.columnDefs.map((col) => col.field),
+        false
+      );
+    }
   });
 
-  // Ensure columns are resized properly when the tab becomes active
+  // Ensure proper column sizing when switching tabs
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && this.gridColumnApi) {
+    if (
+      document.visibilityState === 'visible' &&
+      this.breakdownGrid &&
+      this.breakdownGrid.columnDefs
+    ) {
       this.gridColumnApi.autoSizeColumns(
-        this.gridColumnApi.getAllColumns().map((col) => col.colId),
+        this.breakdownGrid.columnDefs.map((col) => col.field),
         false
       );
     }
@@ -47,76 +83,27 @@ onGridReady(params): void {
 
 ---
 
-Expected Behavior (Output)
+Why This Works:
 
-1. When the grid is initially loaded:
+Explicit Check: The if statements ensure that this.breakdownGrid and this.breakdownGrid.columnDefs are defined before trying to access columnDefs.
 
-The columns will be auto-sized based on their content, just as shown in the first image.
-
-No shrinking or excessive padding will appear.
-
-
-
-2. When switching tabs:
-
-The columns will resize automatically when the tab becomes visible again.
-
-This ensures the grid looks the same as in the first picture.
-
-
-
-3. When resizing the window:
-
-The columns will adjust dynamically to maintain their proper sizes.
-
-
-
-4. No Shrinking or Overlapping:
-
-The grid columns will not shrink or appear squeezed, ensuring the user experience is consistent.
-
-
+This avoids errors related to undefined or null values.
 
 
 
 ---
 
-Explanation of Key Features in the Code
+Steps to Verify:
 
-1. Initial Auto-Sizing of Columns:
-
-autoSizeColumns is called on onGridReady to size the columns based on their content when the grid loads.
+1. Replace your onGridReady code with the above.
 
 
+2. Rebuild and test the application.
 
-2. Dynamic Resizing:
 
-The resize event ensures that column widths adjust dynamically when the window is resized.
+3. The shrinking issue should be resolved, and the error caused by ?. will no longer appear.
 
 
 
-3. Tab Visibility Handling:
-
-The visibilitychange event ensures the grid resizes properly when the user switches back to the tab where the grid is displayed.
-
-
-
-4. Delay for Performance:
-
-A slight delay (200ms) is added for resizing to avoid unnecessary and frequent updates.
-
-
-
-
-
----
-
-Final Output:
-
-The grid will consistently look like the one in the first picture, with clean, properly spaced columns.
-
-Switching tabs, resizing windows, or interacting with the grid will not cause any shrinking issues.
-
-
-Let me know if you need further clarification or additional enhancements!
+Let me know if this resolves the issue!
 
