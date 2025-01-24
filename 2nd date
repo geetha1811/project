@@ -1,0 +1,326 @@
+Yes, you can use a POST method for your request while ensuring it does not add or modify data in the database. Using POST doesn't inherently mean data will be inserted or updated; it depends on how your backend logic is written.
+
+
+---
+
+Explanation:
+
+1. Using POST Instead of GET:
+
+A POST method can be used to send the data in the request body instead of the URL.
+
+This approach avoids issues with long URLs and optional path parameters, as all data can be sent in the request body.
+
+
+
+2. Fetching Data with POST:
+
+A POST method can be used solely for retrieving data from the database without modifying it.
+
+It depends on how the backend service (controller and service layers) is implemented. If the logic only queries the database and returns results, no data will be inserted or updated.
+
+
+
+3. Will POST Add Data to the Database?
+
+No, unless you explicitly write logic to insert data in your service or repository layer. A typical SELECT query in the backend will not perform any modifications to the database.
+
+
+
+
+
+---
+
+Modified Controller with POST:
+
+Here’s how you can implement the POST method to fetch data:
+
+Controller Code:
+
+@PostMapping(
+    path = "result",
+    produces = MediaType.APPLICATION_JSON_VALUE
+)
+@PreAuthorize("hasAuthority('api.iris-portal-basic-details.vl1')")
+@Operation(
+    method = "POST",
+    summary = "Get Breakdown Result",
+    description = "Fetch Breakdown Result based on input parameters"
+)
+@ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Breakdown Result fetched successfully",
+        content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE)
+    ),
+    @ApiResponse(responseCode = "400", description = "Invalid Request Data"),
+    @ApiResponse(responseCode = "401", description = "Unauthorized")
+})
+public ResponseEntity<BreakdownResult> getBreakdownResult(
+    @RequestBody BreakdownRequest request
+) throws Exception {
+    // Handle null or empty businessDate2
+    String businessDate2 = request.getBusinessDate2();
+    if (businessDate2 == null || "null".equalsIgnoreCase(businessDate2) || businessDate2.isEmpty()) {
+        businessDate2 = ""; // Default to empty string
+    }
+
+    // Call service layer with request parameters
+    BreakdownResult result = breakdownService.getBreakdownResult(
+        request.getBasicId(),
+        request.getBusinessDate1(),
+        businessDate2,
+        request.getRc()
+    );
+
+    return ResponseEntity.ok(result);
+}
+
+Request DTO:
+
+public class BreakdownRequest {
+    private String basicId;
+    private String businessDate1;
+    private String businessDate2; // Optional
+    private String rc;
+
+    // Getters and Setters
+}
+
+
+---
+
+Frontend Service for POST:
+
+getBreakdownResult(requestBody: {
+  basicId: string;
+  businessDate1: string;
+  businessDate2?: string;
+  rc: string;
+}): Observable<any> {
+  console.log('Request Body:', requestBody);
+
+  // Call the POST endpoint with requestBody
+  return this.http
+    .post(environment.gatewayURL + 'rest/breakDown/result', requestBody, this.authService.authHeaderOptions())
+    .pipe(
+      map(this.responseData),
+      catchError((error: Response) => {
+        console.error('Error occurred while fetching Breakdown Result:', error);
+
+        // Show error message
+        this.toastr.errorToastr(
+          'Error occurred while fetching Breakdown Result',
+          'Breakdown',
+          {
+            toastTimeout: 3000,
+            position: 'bottom-right',
+            showCloseButton: true,
+          }
+        );
+
+        // Throw error for further handling
+        return throwError('Something went wrong');
+      })
+    );
+}
+
+
+---
+
+Example Usage:
+
+1. With businessDate2:
+
+this.getBreakdownResult({
+  basicId: '123',
+  businessDate1: '2025-01-01',
+  businessDate2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+To test this with Swagger using a POST request and handle the businessDate2 parameter (with or without), here's how you can proceed:
+
+
+---
+
+Steps for Testing in Swagger:
+
+1. Swagger Documentation for POST:
+
+Assuming your Swagger documentation is set up properly, the POST endpoint should be visible under the specified path, such as /rest/breakDown/result.
+
+
+
+2. Request Body:
+
+Since you're using POST, Swagger will provide an input field for the request body in JSON format.
+
+You can provide the required parameters as a JSON object (with or without businessDate2).
+
+
+
+
+Example Request Body in Swagger:
+
+{
+  "basicId": "123",
+  "businessDate1": "2025-01-01",
+  "businessDate2": "2025-01-15",
+  "rc": "456"
+}
+
+If businessDate2 is provided in the body, Swagger will pass it as "2025-01-15".
+
+If businessDate2 is not provided, the backend will interpret it as null or an empty string, depending on your logic.
+
+
+Example without businessDate2:
+
+{
+  "basicId": "123",
+  "businessDate1": "2025-01-01",
+  "rc": "456"
+}
+
+In this case, businessDate2 will be handled as an empty string ("") by the backend based on your logic.
+
+
+
+---
+
+Expected URL with POST Request:
+
+Since you're using a POST method, the URL will always be the same (without the path variables):
+
+POST /rest/breakDown/result
+
+Swagger will show this endpoint as the target for your POST request. The parameters will be passed as part of the request body rather than as URL parameters.
+
+With businessDate2: The JSON body you send in the request would look like:
+
+{
+  "basicId": "123",
+  "businessDate1": "2025-01-01",
+  "businessDate2": "2025-01-15",
+  "rc": "456"
+}
+
+This sends a request to the backend where businessDate2 is "2025-01-15".
+
+Without businessDate2 (Empty string):
+
+{
+  "basicId": "123",
+  "businessDate1": "2025-01-01",
+  "rc": "456"
+}
+
+In this case, the backend would interpret businessDate2 as an empty string "".
+
+
+
+---
+
+How Swagger Handles Optional Parameters:
+
+If you mark businessDate2 as optional in the request body, Swagger will allow you to omit it.
+
+With businessDate2:
+
+{
+  "basicId": "123",
+  "businessDate1": "2025-01-01",
+  "businessDate2": "2025-01-15",
+  "rc": "456"
+}
+
+Without businessDate2 (Optional, backend should interpret as empty):
+
+{
+  "basicId": "123",
+  "businessDate1": "2025-01-01",
+  "rc": "456"
+}
+
+
+
+
+---
+
+What Happens When You Send the Request:
+
+If you send the POST request with businessDate2, the backend will receive the data, query the database with the provided values, and return the result.
+
+If you send the POST request without businessDate2 (or with null), the backend will treat it as an empty string, and the service will fetch the result accordingly.
+
+
+
+---
+
+Swagger URL Behavior:
+
+With the POST method, you will not see path variables in the URL like you would in a GET request. Instead, you send the data as part of the request body, so the URL will remain:
+
+POST /rest/breakDown/result
+
+The actual data is included in the body of the request, not in the URL.
+
+
+---
+
+Example:
+
+1. With businessDate2 in Swagger:
+
+Swagger will show the request body with businessDate2 included, such as:
+
+
+{
+  "basicId": "123",
+  "businessDate1": "2025-01-01",
+  "businessDate2": "2025-01-15",
+  "rc": "456"
+}
+
+The URL will remain:
+
+POST /rest/breakDown/result
+
+
+
+2. Without businessDate2 (Optional):
+
+You can omit businessDate2 in the request body, like so:
+
+
+{
+  "basicId": "123",
+  "businessDate1": "2025-01-01",
+  "rc": "456"
+}
+
+Again, the URL remains:
+
+POST /rest/breakDown/result
+
+
+
+
+
+---
+
+Let me know if you need further details or clarification on using Swagger with POST requests!
+
