@@ -1,0 +1,184 @@
+Here is the corrected code based on the details provided. This code ensures the correct handling of SelectDate1 and SelectDate2, including their formatting and validation, while addressing the issues like "1 Jan 1970" appearing unexpectedly.
+
+
+---
+
+Updated HTML
+
+<div class="col-sm-3">
+  <div class="form-group">
+    <span class="span-text">Select Date 1</span>
+    <div class="input-group">
+      <input
+        placeholder="MM/DD/YYYY"
+        formControlName="chFromDate1"
+        class="form-control"
+        id="dateInput1"
+        style="background-color: #fff; border: 1px solid #ccc;"
+        [value]="formattedDate1"
+        [owlDateTime]="BreakdownDate1"
+        (dateTimeChange)="onDateChange($event, 'date1')"
+      />
+      <div class="input-group-append">
+        <button
+          class="btn-danger"
+          [owlDateTimeTrigger]="BreakdownDate1"
+          type="button"
+        >
+          <img src="./assets/calendar.png" height="20" width="25" />
+          <owl-date-time
+            [pickerType]="'calendar'"
+            [hideClearButton]="true"
+            #BreakdownDate1
+          ></owl-date-time>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col-sm-3">
+  <div class="form-group">
+    <span class="span-text">Select Date 2</span>
+    <div class="input-group">
+      <input
+        placeholder="MM/DD/YYYY"
+        formControlName="chFromDate2"
+        class="form-control"
+        id="dateInput2"
+        style="background-color: #fff; border: 1px solid #ccc;"
+        [value]="formattedDate2"
+        [owlDateTime]="BreakdownDate2"
+        (dateTimeChange)="onDateChange($event, 'date2')"
+      />
+      <div class="input-group-append">
+        <button
+          class="btn-danger"
+          [owlDateTimeTrigger]="BreakdownDate2"
+          type="button"
+        >
+          <img src="./assets/calendar.png" height="20" width="25" />
+          <owl-date-time
+            [pickerType]="'calendar'"
+            [hideClearButton]="true"
+            #BreakdownDate2
+          ></owl-date-time>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+---
+
+Updated TypeScript
+
+export class BreakdownComponent implements OnInit, OnChanges {
+  businessDate1: string | undefined = '';
+  businessDate2: string | undefined = '';
+  formattedDate1: string = '';
+  formattedDate2: string = '';
+
+  // Called when the date changes
+  onDateChange(event: any, dateField: string): void {
+    console.log('Date Change Event:', event);
+    const date: Date = event instanceof Date ? event : event.value instanceof Date ? event.value : new Date(event.value);
+
+    if (isNaN(date.getTime())) {
+      console.error('Invalid date:', event);
+      if (dateField === 'date1') {
+        this.businessDate1 = undefined;
+      } else if (dateField === 'date2') {
+        this.businessDate2 = undefined;
+      }
+      return;
+    }
+
+    if (dateField === 'date1') {
+      this.businessDate1 = this.formatDate(date);
+      this.formattedDate1 = this.businessDate1;
+    } else if (dateField === 'date2') {
+      this.businessDate2 = this.formatDate(date);
+      this.formattedDate2 = this.businessDate2;
+    }
+
+    console.log(`Formatted Date (${dateField}):`, dateField === 'date1' ? this.businessDate1 : this.businessDate2);
+  }
+
+  // Format date to MM/DD/YYYY
+  formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${month}/${day}/${year}`;
+  }
+
+  // Validate and download
+  downloadBreakdownData(): void {
+    if (!this.businessDate1) {
+      alert('Please select Date 1 before downloading.');
+      return;
+    }
+
+    const fileName = `${this.breakdownViewCode || 'undefined'}_${this.selectedName || 'undefined'}_${this.businessDate1}_${this.businessDate2 || ''}.xls`;
+
+    console.log('fileName:', fileName);
+    // Logic for exporting data as Excel
+    const excelParams = {
+      fileName,
+      sheetName: 'Sheet1',
+      skipHeader: false,
+    };
+
+    if (this.breakdownGrid && this.breakdownGrid.api) {
+      this.breakdownGrid.api.exportDataAsExcel(excelParams);
+    } else {
+      console.error('Grid API not available.');
+    }
+  }
+}
+
+
+---
+
+Key Fixes:
+
+1. Optional SelectDate2:
+
+If SelectDate2 is not provided, it defaults to an empty string ('') in the file name.
+
+No unexpected default value like 1 Jan 1970 will appear.
+
+
+
+2. Validation:
+
+The downloadBreakdownData method checks if businessDate1 is provided. If not, it shows an alert and prevents the download.
+
+SelectDate2 remains optional.
+
+
+
+3. Proper Date Formatting:
+
+Dates are formatted consistently using MM/DD/YYYY before being assigned.
+
+
+
+4. Dynamic Updates:
+
+When a date is cleared, it resets to undefined instead of using invalid values.
+
+
+
+
+Expected Output:
+
+Filename for both dates selected: BasicCode_SelectedName_12/01/2024_12/31/2024.xls
+
+Filename for only Date 1: BasicCode_SelectedName_12/01/2024_.xls
+
+Validation Alert: If Date 1 is missing, an alert appears: Please select Date 1 before downloading.
+
+
