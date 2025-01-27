@@ -1,0 +1,128 @@
+I understand your frustration, and I’m here to help. Let’s go through the issue clearly and implement a step-by-step solution to ensure the required behavior is achieved.
+
+
+---
+
+Recap of the Problem:
+
+1. When a criteria is selected from the dropdown and details are provided, it works fine.
+
+
+2. When you try to add a new criteria or return to the dropdown, the previously selected criteria and its details still show up. This should not happen.
+
+
+
+
+---
+
+What Needs to Happen:
+
+When you delete a criterion using criteriaDelete, all the details related to that criterion (like inputs and suggestions) must be cleared.
+
+The interface should be reset properly to ensure old data is not lingering when switching between searches.
+
+
+
+---
+
+Final Modified criteriaDelete Method:
+
+Here’s how you can modify the criteriaDelete method to fully address the problem:
+
+criteriaDelete(index, event) {
+    // Check if the index is valid
+    if (index >= 0 && index < this.addCritInputs.length) {
+        // Remove the selected criterion from the list
+        this.addCritInputs.splice(index, 1);
+    }
+
+    // Clear the extra fields related to the deleted criterion
+    if (index >= 0 && index < this.extraFields.length) {
+        this.extraFields.splice(index, 1);
+    }
+
+    // Reset selected header, value, and search-related data
+    this.selectedHeader = '';
+    this.selectedValue = '';
+    this.searchName = '';
+
+    // Call loadSuggestions to refresh the dropdown or UI
+    this.loadSuggestions();
+}
+
+
+---
+
+Ensure It’s Integrated Properly:
+
+Add the Following Steps to Your Workflow:
+
+1. Reset on Dropdown Change:
+In the addCriteriaChange method, reset any fields before loading new suggestions:
+
+addCriteriaChange(event) {
+    if (typeof event !== 'undefined' && event !== '') {
+        // Clear any previous inputs or suggestions
+        this.extraFields = [];
+        this.selectedHeader = '';
+        this.selectedValue = '';
+        this.searchName = '';
+
+        // Add the new criterion
+        this.addCritInputs.push({ value: event });
+
+        // Load new suggestions
+        this.loadSuggestions();
+    }
+}
+
+
+2. Clear All Data After Search:
+Once a search is completed, clear all fields using:
+
+clearAllCriteria() {
+    this.extraFields = [];
+    this.addCritInputs = [];
+    this.selectedHeader = '';
+    this.selectedValue = '';
+}
+
+performSearch() {
+    // Perform the search logic
+    // ...
+
+    // Clear criteria after search is done
+    this.clearAllCriteria();
+}
+
+
+
+
+---
+
+Testing Checklist:
+
+1. When Adding a New Criterion:
+
+Dropdown selections should allow you to add new inputs without showing old ones.
+
+
+
+2. When Deleting a Criterion:
+
+The selected criteria and associated details should be cleared.
+
+
+
+3. After Performing a Search:
+
+All inputs and selected criteria should reset for a fresh start.
+
+
+
+
+
+---
+
+Please try this updated code and workflow and let me know if it resolves the issue! We can iterate further if needed.
+
