@@ -1,0 +1,120 @@
+Got it! Here's the updated code without the alert and using console.error instead, as per your request.
+
+Updated Code:
+
+downloadbreakdownData() {
+    // Step 1: Get Selected Dates
+    const date1 = this.businessDatel;
+    const date2 = this.businessDate2;
+
+    // Step 2: Construct the file name based on selected dates
+    let fileName = date2
+        ? `${this.breakdownViewCode}_${this.selectedName}_${date1}_${date2}.xls`
+        : `${this.breakdownViewCode}_${this.selectedName}_${date1}.xls`;
+
+    console.log('fileName:', fileName);
+    console.log('Selected Date1:', date1);
+    console.log('Selected Date2:', date2);
+
+    // Step 3: Get Column Definitions and Data
+    const columnDefs = this.breakdownGrid.columnDefs || [];
+    const columnKeys = columnDefs.map(col => col.field);
+    console.log('Column Keys:', columnKeys);
+
+    // Ensure the grid has data
+    const rowCount = this.breakdownGrid.api.getDisplayedRowCount();
+    console.log('Row Count:', rowCount);
+
+    if (rowCount === 0) {
+        console.error("No data to export!");
+        return;
+    }
+
+    // Step 4: Get the grid data for export
+    const rowData = [];
+    this.breakdownGrid.api.forEachNodeAfterFilterAndSort((node) => {
+        rowData.push(node.data);
+    });
+
+    console.log('Data to Export:', rowData);
+
+    // If no data is available after filter and sort
+    if (rowData.length === 0) {
+        console.error("No data available for export.");
+        return;
+    }
+
+    // Step 5: Export to Excel
+    const excelParams = {
+        columnKeys,          // Set the columns to export
+        allColumns: true,    // Export all columns
+        fileName,            // Set the file name dynamically
+        sheetName: 'Sheet1', // Name of the sheet
+        skipHeader: false    // Include the headers
+    };
+
+    console.log('Excel Params:', excelParams);
+
+    // Ensure the grid API is available before exporting
+    if (this.breakdownGrid.api) {
+        this.breakdownGrid.api.exportDataAsExcel(excelParams);
+    } else {
+        console.error('Grid API is not available.');
+    }
+}
+
+Changes:
+
+Replaced the alert calls with console.error for error messages:
+
+If no data is found for export: console.error("No data to export!");
+
+If no rows are available after filtering: console.error("No data available for export.");
+
+
+
+
+---
+
+What to Expect:
+
+In the Console:
+
+1. File Name: Logs the dynamically created file name based on the selected dates.
+
+
+2. Selected Dates: Logs both date1 and date2.
+
+
+3. Column Keys: Logs the columns that will be exported.
+
+
+4. Row Count: Logs the number of rows in the grid.
+
+
+5. Grid Data: Logs the data that will be exported to Excel.
+
+
+6. Error Messages: If no data is available, the error will be logged using console.error:
+
+No data to export! if the grid has no data.
+
+No data available for export. if no data is available after filtering.
+
+
+
+
+In Excel:
+
+File Name: The file name will reflect the selected dates.
+
+Columns: The columns from columnKeys will be included in the Excel file.
+
+Data: The data corresponding to the filtered and sorted grid will be exported to the Excel file.
+
+
+
+---
+
+This code should now work as expected with console.error for error logging. Let me know how it works!
+
