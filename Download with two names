@@ -1,0 +1,95 @@
+It seems the issue is related to how the data is being passed for export, not the filename or column definitions. Here's how we can ensure that the data gets exported correctly:
+
+Debugging Steps and Updates:
+
+1. Check if Data is Available: First, ensure that the data exists in the grid before exporting. You can log the data and verify if it’s present.
+
+
+2. Ensure Data Is Correctly Mapped: Make sure that the grid data is being correctly passed to the export function. The exportDataAsExcel function uses the grid data, so we need to ensure the data is available and correctly mapped to the columns.
+
+
+
+Updated Code with Debugging:
+
+downloadbreakdownData() {
+    // Ensure both dates are correctly retrieved
+    const date1 = this.businessDatel;
+    const date2 = this.businessDate2;
+
+    // Construct the file name based on the available dates
+    let fileName;
+    if (date2) {
+        fileName = `${this.breakdownViewCode}_${this.selectedName}_${date1}_${date2}.xls`;
+    } else {
+        fileName = `${this.breakdownViewCode}_${this.selectedName}_${date1}.xls`;
+    }
+
+    console.log('fileName:', fileName);
+    console.log('basic code in download:', this.breakdownViewCode);
+    console.log('option name in download:', this.selectedName);
+    console.log('business Date1 in download:', date1);
+    console.log('business Date2 in download:', date2);
+
+    // Ensure column definitions exist
+    const columnDefs = this.breakdownGrid.columnDefs || [];
+    const columnKeys = columnDefs.map(col => col.field);
+    console.log('Column Definitions:', columnDefs);
+    console.log('Column Keys:', columnKeys);
+
+    // Check if data exists in the grid
+    const gridData = this.breakdownGrid.api.getDisplayedRowCount();
+    if (gridData === 0) {
+        console.log('No data available for export!');
+        alert('No data to export!');
+        return;
+    }
+
+    // Prepare the export parameters
+    const excelParams = {
+        columnKeys,
+        allColumns: true,
+        fileName,
+        sheetName: 'Sheet1',
+        skipHeader: false
+    };
+
+    console.log('Excel Params:', excelParams);
+
+    // Export data as Excel
+    if (this.breakdownGrid.api) {
+        this.breakdownGrid.api.exportDataAsExcel(excelParams);
+    } else {
+        console.error('Grid API is not available.');
+    }
+}
+
+Key Updates:
+
+1. Checking Row Count:
+
+I added a check to ensure there is data in the grid before exporting. If the row count (getDisplayedRowCount()) is 0, it alerts you that no data is available for export.
+
+
+
+2. Logging Column Definitions and Keys:
+
+I’ve added logs for column definitions (columnDefs) and the columnKeys array so you can see if the correct columns are being passed for export.
+
+
+
+3. Grid Data Verification:
+
+We’re using this.breakdownGrid.api.getDisplayedRowCount() to check if the data is displayed before attempting to export it. If this returns 0, the grid has no data to export.
+
+
+
+
+Try the Following:
+
+If there is data in the grid but it’s not showing in Excel, ensure that the grid data is correctly populated and displayed.
+
+If there is no data, double-check how the data is being loaded into the grid and ensure the correct rows are available based on the date filters (businessDatel and businessDate2).
+
+
+Let me know if this helps or if we need to debug the data-loading logic further.
+
