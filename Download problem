@@ -1,0 +1,89 @@
+Great! Since you've already handled the filename correctly based on whether businessDate2 is given, the main issue now is ensuring the data is not missing in the exported Excel file.
+
+
+---
+
+Final Fix to Ensure Data is Present in Excel
+
+If you are still facing the issue where Excel is blank after switching between one date and two dates, it may be due to:
+
+1. Grid Data Not Updating Properly – Need to refresh the grid before exporting.
+
+
+2. Delayed Data Fetching – If the grid updates asynchronously, we should wait before exporting.
+
+
+
+
+---
+
+Fixed Code:
+
+downloadbreakdownData() {
+    // Construct the filename (you've already handled Business Date 2 condition)
+    let fileName = `${this.breakdownViewCode}_${this.selectedName}_${this.businessDatel}`;
+    if (this.businessDate2) {
+        fileName += `_${this.businessDate2}`;
+    }
+    fileName += `.xls`;
+
+    console.log('fileName:', fileName);
+    console.log('Basic code:', this.breakdownViewCode);
+    console.log('Option name:', this.selectedName);
+    console.log('Business Date1:', this.businessDatel);
+    console.log('Business Date2:', this.businessDate2 || 'Not Provided');
+
+    // Ensure column definitions exist
+    const columnDefs = this.breakdownGrid.columnDefs || [];
+    const columnKeys = columnDefs.map(col => col.field);
+
+    console.log('Column Keys:', columnKeys);
+
+    // **Force Refresh the Grid Data**
+    this.breakdownGrid.api.refreshCells();
+    this.breakdownGrid.api.refreshView(); // Ensures UI update before export
+
+    // Small delay to ensure grid refresh is completed before export
+    setTimeout(() => {
+        const rowData = [];
+        this.breakdownGrid.api.forEachNode(node => rowData.push(node.data));
+
+        console.log('Row Data Before Export:', rowData); // Debugging check
+
+        if (rowData.length === 0) {
+            console.error('No data found for export!');
+            alert('No data available to export. Please check filters or data loading.');
+            return; // Stop export if data is missing
+        }
+
+        // Define Excel export parameters
+        const excelParams = {
+            columnKeys,
+            allColumns: true,
+            fileName,
+            sheetName: 'Sheet1',
+            skipHeader: false
+        };
+
+        console.log('Excel Params:', excelParams);
+        this.breakdownGrid.api.exportDataAsExcel(excelParams);
+    }, 300); // Delay ensures data updates first
+}
+
+
+---
+
+Fixes & Enhancements in This Code:
+
+✅ Prevents blank Excel exports – Ensures grid data is fetched before exporting.
+✅ Adds a safeguard – If no data is present, it alerts the user instead of exporting a blank file.
+✅ Forces a grid refresh – Ensures data is up-to-date before exporting.
+✅ Waits for grid update – Uses a small delay to allow UI updates before Excel export.
+
+
+---
+
+Try This & Let Me Know If It Works!
+
+This should completely fix the issue of getting a blank Excel file after switching dates. If you're still facing problems, check the console log for Row Data Before Export: to see if the grid actually has data before exporting.
+
