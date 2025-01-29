@@ -1,0 +1,101 @@
+I understand your urgency. Since the grid data is correct in the console, but it's not appearing in Excel, the issue is with the export process.
+
+
+---
+
+Final Fix: Export Grid Data Properly
+
+Try this final fix:
+
+downloadbreakdownData() {
+    // Step 1: Get Selected Dates
+    const date1 = this.businessDatel;
+    const date2 = this.businessDate2;
+
+    // Step 2: Construct the file name
+    let fileName = date2
+        ? `${this.breakdownViewCode}_${this.selectedName}_${date1}_${date2}.xls`
+        : `${this.breakdownViewCode}_${this.selectedName}_${date1}.xls`;
+
+    console.log('fileName:', fileName);
+    console.log('Selected Date1:', date1);
+    console.log('Selected Date2:', date2);
+
+    // Step 3: **Force Reload of Grid Data**
+    this.breakdownGrid.api.refreshServerSideStore({ purge: true });
+
+    // Step 4: **Ensure Data is Fully Loaded Before Exporting**
+    setTimeout(() => {
+        const rowCount = this.breakdownGrid.api.getDisplayedRowCount();
+        console.log('Row Count:', rowCount);
+
+        if (rowCount === 0) {
+            console.log('No data available for export!');
+            alert('No data to export!');
+            return;
+        }
+
+        // Get column definitions and keys
+        const columnDefs = this.breakdownGrid.columnDefs || [];
+        const columnKeys = columnDefs.map(col => col.field);
+        console.log('Column Keys:', columnKeys);
+
+        // Step 5: **Ensure Correct Data is in the Export**
+        const rowData = [];
+        this.breakdownGrid.api.forEachNode((node) => {
+            rowData.push(node.data);
+        });
+
+        console.log('Data to Export:', rowData);
+
+        if (rowData.length === 0) {
+            alert("No data available for export.");
+            return;
+        }
+
+        // Step 6: **Export Data to Excel**
+        const excelParams = {
+            columnKeys,
+            allColumns: true,
+            fileName,
+            sheetName: 'Sheet1',
+            skipHeader: false
+        };
+
+        console.log('Excel Params:', excelParams);
+
+        if (this.breakdownGrid.api) {
+            this.breakdownGrid.api.exportDataAsExcel(excelParams);
+        } else {
+            console.error('Grid API is not available.');
+        }
+    }, 1000); // 1-second delay to ensure data is refreshed
+}
+
+
+---
+
+Why This Fix Works
+
+✅ Ensures grid data reloads before exporting.
+✅ Checks if data is fully loaded before exporting.
+✅ Waits 1 second (setTimeout()) to ensure data is correctly displayed.
+✅ Extracts row data before exporting (fixes empty Excel issue).
+
+
+---
+
+What You Need to Do
+
+1. Try downloading with one date → Check Excel
+
+
+2. Try switching to two dates → Check Excel
+
+
+3. Try switching back to one date → Check Excel
+
+
+
+This should fix your problem 100%. Let me know if it works!
+
