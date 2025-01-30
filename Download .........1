@@ -1,0 +1,53 @@
+downloadBreakdownData() {
+  let fileName = `${this.breakdownViewCode}_${this.selectedName}_${this.businessDatel}`;
+  if (this.businessDate2) {
+    fileName += `_to_${this.businessDate2}`;
+  }
+  fileName += `.xls`;
+
+  console.log('Generated File Name:', fileName);
+
+  // Get column definitions and keys
+  const columnDefs = this.breakdownGrid.columnDefs || [];
+  const columnKeys = columnDefs.map(col => col.field).filter(Boolean); // Ensures no undefined/null values
+
+  // Check if grid data is valid
+  const rowCount = this.breakdownGrid.api.getDisplayedRowCount();
+  console.log('Row Data Count:', rowCount);
+
+  if (rowCount === 0) {
+    alert('No data available for the selected date range.');
+    return;
+  }
+
+  // Log data to verify it's correct
+  const gridData = this.breakdownGrid.api.getDataAsCsv();
+  console.log('Exporting Data:', gridData);
+
+  // If grid data is empty, show alert
+  if (!gridData || gridData.trim() === '') {
+    alert('Data is present in the grid, but the export function is not capturing it.');
+    return;
+  }
+
+  const excelParams = {
+    columnKeys,
+    allColumns: true,
+    fileName,
+    sheetName: 'Sheet1',
+    skipHeader: false
+  };
+
+  console.log('Excel Params:', excelParams);
+
+  // Ensure the grid API is ready before exporting
+  setTimeout(() => {
+    try {
+      this.breakdownGrid.api.exportDataAsExcel(excelParams);
+      console.log('Excel Export Triggered Successfully');
+    } catch (error) {
+      console.error('Error Exporting Excel:', error);
+      alert('An error occurred while exporting. Check the console for details.');
+    }
+  }, 500);
+}
