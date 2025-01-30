@@ -1,0 +1,57 @@
+downloadBreakdownData() {
+  let fileName = `${this.breakdownViewCode}_${this.selectedName}_${this.businessDatel}`;
+  if (this.businessDate2) {
+    fileName += `_to_${this.businessDate2}`;
+  }
+  fileName += `.xls`;
+
+  console.log('Generated File Name:', fileName);
+
+  // Ensure grid data is correct
+  const gridData = this.breakdownGrid.api.getDataAsCsv();
+  console.log('Grid Data for CSV:', gridData);
+
+  if (!gridData || gridData.trim() === '') {
+    alert('Grid data is empty.');
+    return;
+  }
+
+  // Ensure column definitions are available
+  const columnDefs = this.breakdownGrid.columnDefs || [];
+  const columnKeys = columnDefs.map(col => col.field).filter(Boolean);
+
+  if (columnKeys.length === 0) {
+    console.error('No columns available for export');
+    return;
+  }
+
+  const excelParams = {
+    columnKeys,
+    allColumns: true,
+    fileName,
+    sheetName: 'Sheet1',
+    skipHeader: false,
+  };
+
+  console.log('Excel Params:', excelParams);
+
+  // Clear any previous export state
+  this.breakdownGrid.api.clearFocusedCell();
+  this.breakdownGrid.api.setFocusedCell(0, 0); // Reset the focus
+
+  // Reset grid API to ensure it uses the current data
+  this.breakdownGrid.api.refreshHeader();
+  this.breakdownGrid.api.redrawRows();
+
+  // Add a small delay to ensure the grid refreshes
+  setTimeout(() => {
+    try {
+      // Trigger Excel export after forcing the grid to refresh
+      this.breakdownGrid.api.exportDataAsExcel(excelParams);
+      console.log('Excel Export Triggered Successfully');
+    } catch (error) {
+      console.error('Error Exporting Excel:', error);
+      alert('An error occurred while exporting. Check the console for details.');
+    }
+  }, 500); // Adding a small delay to ensure grid is fully updated
+}
