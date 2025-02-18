@@ -64,3 +64,167 @@ Changes:
 
 This will now trigger the download of the breakdown data as an Excel file, with the values formatted correctly (comma-separated values handled, numeric values recognized, and column widths adjusted).
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+You're absolutely right—thanks for catching that. Let's modify the code to correctly use the exportDataAsExcel() method, which is the preferred way to export data as Excel in Ag-Grid. This approach keeps the core logic intact while ensuring proper Excel export functionality.
+
+
+---
+
+Key Changes:
+
+1. Uses exportDataAsExcel() directly from Ag-Grid to export data.
+
+
+2. File Naming Format:
+
+breakdownViewCode_selectedName_dropdownOption_businessDate1_businessDate2.xlsx
+
+businessDate1 and businessDate2 are optional.
+
+
+
+3. Automatically Adjusts Column Widths:
+
+Ensures Excel columns adjust based on the content length.
+
+
+
+4. Preserves Data Integrity:
+
+Maintains data types (e.g., numbers remain numbers).
+
+
+
+
+
+---
+
+Prerequisites:
+
+Ensure you are using Ag-Grid with Excel export support. If you're using the community version, make sure to include the Excel export module:
+
+import { ExcelExportModule } from '@ag-grid-enterprise/excel-export';
+
+If you're using the enterprise version, you don't need to import anything extra.
+
+
+---
+
+Complete Code:
+
+function downloadBreakdownData() {
+    // Construct the file name dynamically
+    let fileName = this.breakdownViewCode 
+        + `_${this.selectedName}` 
+        + `_${this.dropdownOption}` 
+        + (this.businessDate1 ? `_${this.businessDate1}` : '') 
+        + (this.businessDate2 ? `_${this.businessDate2}` : '') 
+        + '.xlsx';
+
+    // Use Ag-Grid's built-in method to export as Excel
+    this.breakdownGrid.api.exportDataAsExcel({
+        fileName: fileName,
+        sheetName: 'Sheet1',
+        processCellCallback: (params) => {
+            let value = params.value;
+            // Check if the value is a number and convert it
+            if (!isNaN(value) && value !== '') {
+                value = Number(value);
+            }
+            return value;
+        },
+        autoSizeColumns: true
+    });
+}
+
+
+---
+
+Key Features:
+
+1. Direct Use of exportDataAsExcel():
+
+Leverages Ag-Grid's built-in method for Excel export.
+
+Ensures better compatibility and functionality compared to custom implementations.
+
+
+
+2. Dynamic File Naming:
+
+Constructs the file name using:
+
+breakdownViewCode (mandatory)
+
+selectedName (mandatory)
+
+dropdownOption (mandatory)
+
+businessDate1 (optional)
+
+businessDate2 (optional)
+
+
+Example file names:
+
+breakdownCode_name_option.xlsx
+
+breakdownCode_name_option_date1.xlsx
+
+breakdownCode_name_option_date1_date2.xlsx
+
+
+
+
+3. Automatic Column Widths:
+
+Uses autoSizeColumns: true to automatically adjust column widths in Excel based on content length.
+
+
+
+4. Preserves Data Types:
+
+Ensures numbers are exported as numbers, allowing Excel formulas like SUM and COUNT to work.
+
+
+
+
+
+---
+
+Why Use exportDataAsExcel():
+
+No need to manually parse data or headers: Ag-Grid handles the export internally.
+
+Better integration and maintenance: Leverages built-in Ag-Grid functionality, reducing custom code complexity.
+
+Consistent Excel Formatting: Ensures the exported Excel file is properly formatted and maintains data integrity.
+
+
+
+---
+
+How to Use:
+
+Replace your existing downloadBreakdownData() function with this version.
+
+Call the function from your component or event handler as needed.
+
+
+This solution leverages the best practice for exporting data as Excel from Ag-Grid, ensuring seamless integration and a robust export experience.
+
