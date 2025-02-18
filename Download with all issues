@@ -1,0 +1,66 @@
+Got it! I’ll update the function name to downloadBreakdownData() and replace getDataAsCsv with exportDataAsExcel. Here’s the corrected version of your code:
+
+function downloadBreakdownData() {
+  let fileName = `${this.breakdownViewCode}-${this.selectedName}-${this.businessDate}`;
+
+  if (this.businessDate2) {
+    fileName += `-${this.businessDate2}`;
+  }
+  fileName += '.xlsx';
+
+  // Export data to Excel
+  const gridData = this.breakdownGrid.api.exportDataAsExcel();
+
+  // Split the exported data into rows
+  const rows = gridData.split('\n');
+  
+  // Get headers from the first row
+  const headers = rows[0].split(',').map(header => header.replace(/"/g, '').trim());
+  
+  // Process data rows, ensuring numbers are treated as numbers
+  const data = rows.slice(1).map(row => {
+    const cells = row.split(',').map(cell => cell.replace(/"/g, '').trim());
+    const obj = {};
+    
+    cells.forEach((cell, index) => {
+      let value = cell;
+      if (!isNaN(value) && value.trim() !== '') {
+        value = Number(value);
+      }
+      obj[headers[index]] = value;
+    });
+    
+    return obj;
+  });
+
+  // Create the worksheet from the data
+  const worksheet = XLSX.utils.json_to_sheet(data, { header: headers });
+
+  // Adjust column widths based on the data
+  const colWidths = headers.map(header => ({
+    wch: Math.max(
+      header.length,
+      ...data.map(row => (row[header] ? row[header].toString().length : 0))
+    ) + 2,
+  }));
+  worksheet['!cols'] = colWidths;
+
+  // Create the workbook and add the worksheet to it
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+
+  // Write the file
+  XLSX.writeFile(workbook, fileName);
+}
+
+Changes:
+
+1. The function name has been changed to downloadBreakdownData().
+
+
+2. this.breakdownGrid.api.exportDataAsExcel() is used instead of getDataAsCsv to export the grid data as Excel directly.
+
+
+
+This will now trigger the download of the breakdown data as an Excel file, with the values formatted correctly (comma-separated values handled, numeric values recognized, and column widths adjusted).
+
